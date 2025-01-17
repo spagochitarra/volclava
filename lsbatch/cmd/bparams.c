@@ -1,4 +1,6 @@
-/* $Id: bparams.c 397 2007-11-26 19:04:00Z mblack $
+/* 
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: bparams.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -209,7 +211,7 @@ printLong (struct parameterInfo *reply)
     }
 
 	
-	printf("%s:\n", I18N(2422, "The Maximum JobId defined in the system" /* catgets 2422 */));
+    printf("%s:\n", I18N(2422, "The Maximum JobId defined in the system" /* catgets 2422 */));
     printf(I18N(2426, "    MAX_JOBID = %d\n\n"), /* catgets 2426 */ reply->maxJobId);
 
     
@@ -229,6 +231,9 @@ printLong (struct parameterInfo *reply)
         printf("%s:\n", I18N(2424,"Mbatchd Archive threshold")); /* catgets 2424 */
         printf(" %20s = %d %s\n\n", "ACCT_ARCHIVE_SIZE", reply->acctArchiveInSize, I18N(2419, "kB")); /* catgets 2419 */
     }
+
+    printf("%s:\n", "Mbatchd reserves resources based on job tasks");
+    printf(" %28s = %s\n\n", "RESOURCE_RESERVE_PER_TASK", reply->resourcePerTask?"Y":"N");
 
 
 } 

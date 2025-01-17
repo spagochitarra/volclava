@@ -1637,8 +1637,9 @@ do_paramInfoReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
     if (!xdr_infoReq(xdrs, &infoReq, reqHdr)) {
         reply = LSBE_XDR;
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_infoReq");
-    } else
+    } else {
         checkParams(&infoReq, &paramInfo);
+    }
     reply = LSBE_NO_ERROR;
 
     if (paramInfo.pjobSpoolDir != NULL) {

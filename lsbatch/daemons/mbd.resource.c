@@ -1,4 +1,5 @@
-/* $Id: mbd.resource.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: mbd.resource.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -541,8 +542,9 @@ adjustLoadValue:
 	    } else {
 
 		TEST_BIT (ldx, rusgBitMaps, isSet)
-                    if (isSet == TRUE)
-                        continue;
+                if (isSet == TRUE && !slotResourceReserve) {
+                    continue;
+                }
 	    }
 
 	    if (logclass & LC_SCHED)

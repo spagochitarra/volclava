@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
  * Copyright (C) 2011 David Bigagli
  * Copyright (C) 2007 Platform Computing Inc
  *
@@ -1269,9 +1270,6 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
     reply->maxUserPriority = maxUserPriority;
     reply->jobPriorityValue = jobPriorityValue;
     reply->jobPriorityTime = jobPriorityTime;
-
-
-
     reply->jobDepLastSub = jobDepLastSub;
     reply->sharedResourceUpdFactor = sharedResourceUpdFactor;
 
@@ -1279,7 +1277,7 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
     reply->maxAcctArchiveNum = maxAcctArchiveNum;
     reply->acctArchiveInDays = acctArchiveInDays;
     reply->acctArchiveInSize = acctArchiveInSize;
-
+    reply->resourcePerTask = resourcePerTask;
 }
 
 void

@@ -1902,6 +1902,7 @@ setParams(struct paramConf *paramConf)
     setValue(maxAcctArchiveNum, params->maxAcctArchiveNum);
     setValue(acctArchiveInDays, params->acctArchiveInDays);
     setValue(acctArchiveInSize, params->acctArchiveInSize);
+    setValue(resourcePerTask, params->resourcePerTask);
 
 }
 
