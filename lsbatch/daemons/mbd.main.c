@@ -74,6 +74,8 @@ int    slotResourceReserve = FALSE;
 int    maxAcctArchiveNum = -1;
 int    acctArchiveInDays = -1;
 int    acctArchiveInSize = -1;
+int    resourcePerTask = 0;
+
 int    numofqueues  = 0;
 int    numofprocs   = 0;
 int    numofusers    = 0;

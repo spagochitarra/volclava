@@ -452,13 +452,11 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
     if (!xdr_int(xdrs,&(paramInfo->jobTerminateInterval)))
 	return(FALSE);
 
-
     if (! xdr_bool(xdrs, &paramInfo->disableUAcctMap))
         return(FALSE);
 
     if (!(xdr_int(xdrs,&(paramInfo->maxJobArraySize))))
         return(FALSE);
-
 
     if (!(xdr_var_string(xdrs, &paramInfo->pjobSpoolDir))) {
 	return(FALSE);
@@ -469,7 +467,6 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
 	      xdr_int(xdrs, &paramInfo->jobPriorityTime))) {
             return(FALSE);
     }
-
 
     if (!xdr_int(xdrs, &(paramInfo->maxJobId)))
     {
@@ -482,12 +479,13 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
 	return (FALSE);
     }
 
-
-
-
     if (!(xdr_int(xdrs,&(paramInfo->jobDepLastSub)) &&
         xdr_int(xdrs,&(paramInfo->sharedResourceUpdFactor)))) {
            return (FALSE);
+    }
+
+    if (!(xdr_int(xdrs, &paramInfo->resourcePerTask))) {
+        return (FALSE);
     }
 
     return(TRUE);

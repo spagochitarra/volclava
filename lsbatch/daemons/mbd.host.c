@@ -1286,6 +1286,7 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
     struct resourceInstance *instance;
     static int *rusgBitMaps = NULL;
     int adjForPreemptableResource = FALSE;
+    struct hTab  exHostTab;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -1320,17 +1321,49 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
         }
         adjForPreemptableResource = TRUE;
     }
+
+    h_initTab_(&exHostTab, 11);
     for (i = 0; i < jpbw->numHostPtr; i++) {
         float load;
         char loadString[MAXLSFNAMELEN];
+        hEnt *ent = NULL;
+        int  isNextHost = TRUE; /*Whether treat the element as a host*/
 
         if (jpbw->hPtr[i]->hStatus & HOST_STAT_UNAVAIL)
             continue;
 
+        /*RESOURCE_PER_TASK
+         *Y: host-based/shared resource are per-task;
+         *N: host-based resource is per-host; shared resource is per-job;
+         *
+         *For host-based resource, we use RESOURCE_PER_TASK to control
+         *how resource reserve directly.
+         *For shared resouce, we let RESOURCE_PER_TASK to affect SLOT_RESOURCE_RESERVE's
+         *value, and leverage slotResourceReserve to control how resource reserve.
+         *If SLOT_RESOURCE_RESERVE isn't defined visibly, its value will be the same
+         *with RESOURCE_PER_TASK; if it is defined visibly, it will override RESOURCE_PER_TASK
+         *behavior. 
+         */
+        if (!resourcePerTask) { /*RESOURCE_PER_TASK not set*/
+            ent = h_getEnt_(&exHostTab, jpbw->hPtr[i]->host);
+            if (ent) {
+                isNextHost = FALSE;
+                if (!slotResourceReserve) { /*all type resources aren't defined as per-task*/
+                    continue; /*we already adjust resource for this host*/
+                }
+            } else {
+                isNextHost = TRUE;
+                h_addEnt_(&exHostTab, jpbw->hPtr[i]->host, NULL);
+            }
+        }
 
         for (ldx = 0; ldx < allLsInfo->nRes; ldx++) {
             float factor;
             int isSet;
+
+            if (ldx < allLsInfo->numIndx && !isNextHost) {
+                continue;
+            }
 
             if (NOT_NUMERIC(allLsInfo->resTable[ldx]))
                 continue;
@@ -1339,11 +1372,9 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
             if (isSet == 0)
                 continue;
 
-
             if (adjForPreemptableResource && (!isItPreemptResourceIndex(ldx))) {
                 continue;
             }
-
 
             if (jpbw->jStatus & JOB_STAT_RUN) {
 
@@ -1357,6 +1388,15 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
 
                 goto adjustLoadValue;
 
+
+            } else if (IS_SUSP(jpbw->jStatus)
+                       &&
+                       ! (allLsInfo->resTable[ldx].flags & RESF_RELEASE)
+                       &&
+                       forResume == TRUE
+                       &&
+                       (jpbw->jStatus & JOB_STAT_RESERVE)) {
+                continue;
 
             } else if (IS_SUSP(jpbw->jStatus)
                        &&
@@ -1374,11 +1414,7 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                 goto adjustLoadValue;
 
             } else {
-
-
-
                 continue;
-
             }
 
         adjustLoadValue:
@@ -1387,9 +1423,9 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
             if (jackValue >= INFINIT_LOAD || jackValue <= -INFINIT_LOAD)
                 continue;
 
-            if (ldx < allLsInfo->numIndx)
+            if (ldx < allLsInfo->numIndx) {
                 load = jpbw->hPtr[i]->lsbLoad[ldx];
-            else {
+            } else {
                 load = getHRValue(allLsInfo->resTable[ldx].name,
                                   jpbw->hPtr[i], &instance);
                 if (load == -INFINIT_LOAD) {
@@ -1399,10 +1435,9 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                 } else {
 
                     TEST_BIT (ldx, rusgBitMaps, isSet)
-                        if ((isSet == TRUE) && !slotResourceReserve) {
-
-                            continue;
-                        }
+                    if ((isSet == TRUE) && !slotResourceReserve) {
+                        continue;
+                    }
                     SET_BIT (ldx, rusgBitMaps);
                 }
             }
@@ -1500,6 +1535,7 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                           factor);
         }
     }
+    h_delTab_(&exHostTab);
 }
 
 struct resVal *

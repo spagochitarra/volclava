@@ -7825,10 +7825,11 @@ shouldResumeByRes (struct jData *jp)
     int i, j, returnCode = RESUME_JOB;
     struct  resVal *resValPtr;
     float **loads;
+    struct hTab  exHostTab;
+    hEnt  *ent = NULL;
 
     if (logclass & (LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG3, "%s: job=%s; jStatus=%x; reasons=%x, subreasons=%d, numHosts=%d", fname, lsb_jobid2str(jp->jobId), jp->jStatus, jp->newReason, jp->subreasons, jp->numHostPtr);
-
 
     if (!IS_SUSP (jp->jStatus))
         return RESUME_JOB;
@@ -7845,7 +7846,7 @@ shouldResumeByRes (struct jData *jp)
         return RESUME_JOB;
     }
 
-
+    /*save the original load/resource values*/
     loads = (float **) my_malloc (jp->numHostPtr * sizeof (float *), fname);
     for (i = 0; i < jp->numHostPtr; i++) {
         loads [i] = (float *) my_malloc
@@ -7858,8 +7859,8 @@ shouldResumeByRes (struct jData *jp)
                 atof (jp->hPtr[i]->instances[j]->value);
     }
 
+    /*temporary consume the resource from the host*/
     adjLsbLoad (jp, TRUE, TRUE);
-
 
     FORALL_PRMPT_RSRCS(j) {
         float val;
@@ -7889,8 +7890,18 @@ shouldResumeByRes (struct jData *jp)
             break;
     } ENDFORALL_PRMPT_RSRCS;
 
-
+    /*exam whether resources is enrough to resume the job*/
+    h_initTab_(&exHostTab, 11);
     for (i = 0; i < jp->numHostPtr && returnCode != CANNOT_RESUME; i++) {
+
+        ent = h_getEnt_(&exHostTab, jp->hPtr[i]->host);
+        if (ent) {
+            /*The host has been checked, we don't need validate load/resource again*/
+            continue;
+        } else {
+            h_addEnt_(&exHostTab, jp->hPtr[i]->host, NULL);
+        }
+    
         for (j = 0; j < allLsInfo->numIndx; j++) {
             if (jp->hPtr[i]->lsbLoad[j] < 0.0
                 || (j == UT && jp->hPtr[i]->lsbLoad[j] > 1.0)) {
@@ -7899,8 +7910,9 @@ shouldResumeByRes (struct jData *jp)
             }
         }
 
-        if (i > 0 && !slotResourceReserve)
+        if (i > 0 && !slotResourceReserve) {
             continue;
+        }
         for (j = 0; j < jp->hPtr[i]->numInstances; j++) {
             if (atof (jp->hPtr[i]->instances[j]->value) < 0.0 &&
                 !isItPreemptResourceName(jp->hPtr[i]->instances[j]->resName)) {
@@ -7912,7 +7924,9 @@ shouldResumeByRes (struct jData *jp)
             }
         }
     }
+    h_delTab_(&exHostTab);
 
+    /*recover the value*/
     for (i = 0; i < jp->numHostPtr; i++) {
         char loadString[MAXLSFNAMELEN];
         for (j = 0; j < allLsInfo->numIndx; j++)

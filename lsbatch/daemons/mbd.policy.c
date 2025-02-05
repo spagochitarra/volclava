@@ -1665,8 +1665,12 @@ ckResReserve(struct hData *hD, struct resVal *resValPtr, int *resource,
             if (allLsInfo->resTable[jj].orderType == INCR) {
 
                 if (hD->loadStop[jj] < INFINIT_LOAD) {
-                    useVal = (int)((hD->loadStop[jj]
-                                    - hD->lsfLoad[jj])/ resValPtr->val[jj]);
+                    if (resourcePerTask) { /*resource consumption is per task*/
+                        useVal = (int)((hD->loadStop[jj]
+                                        - hD->lsfLoad[jj])/ resValPtr->val[jj]);
+                    } else { /*resource consumption is per host*/
+                        useVal = (hD->loadStop[jj] - hD->lsfLoad[jj]) >= resValPtr->val[jj] ? hD->numCPUs:0;
+                    }
                     if (useVal < 0)
                         useVal = 0;
                 } else {
@@ -1674,10 +1678,18 @@ ckResReserve(struct hData *hD, struct resVal *resValPtr, int *resource,
                 }
             } else {
 
-                if (hD->loadStop[jj] >= INFINIT_LOAD || hD->loadStop[jj] <= -INFINIT_LOAD)
-                    useVal = (int) (hD->lsbLoad[jj]/ resValPtr->val[jj]);
-                else {
-                    useVal = (int) ((hD->lsbLoad[jj] - hD->loadStop[jj])/resValPtr->val[jj]);
+                if (hD->loadStop[jj] >= INFINIT_LOAD || hD->loadStop[jj] <= -INFINIT_LOAD) {
+                    if (resourcePerTask) { /*resource consumption is per task*/
+                        useVal = (int) (hD->lsbLoad[jj]/ resValPtr->val[jj]);
+                    } else { /*resource consumption is per host*/
+                        useVal = hD->lsbLoad[jj] >= resValPtr->val[jj] ? hD->numCPUs:0;
+                    }
+                } else {
+                    if (resourcePerTask) { /*resource consumption is per task*/
+                        useVal = (int) ((hD->lsbLoad[jj] - hD->loadStop[jj])/resValPtr->val[jj]);
+                    } else { /*resource consumption is per host*/
+                        useVal = (hD->lsbLoad[jj] - hD->loadStop[jj]) >= resValPtr->val[jj] ? hD->numCPUs:0;
+                    }
                     if (useVal < 0)
                         useVal = 0;
                 }
@@ -1718,18 +1730,15 @@ ckResReserve(struct hData *hD, struct resVal *resValPtr, int *resource,
             if (slotResourceReserve) {
                 if (rVal < jp->shared->jobBill.numProcessors*resValPtr->val[jj]
                     && allLsInfo->resTable[jj].orderType != INCR) {
-                    useVal = rVal;
+                    useVal = 0;
                 } else {
-
                     useVal = hD->numCPUs;
                 }
             } else {
                 if (rVal < resValPtr->val[jj]
                     && allLsInfo->resTable[jj].orderType != INCR) {
-
                     return 0;
                 } else {
-
                     useVal = hD->numCPUs;
                 }
             }
@@ -4407,6 +4416,7 @@ scheduleAndDispatchJobs(void)
 
 again:
     min = INT32_MAX;
+    jPtr = NULL;
     jR0 = NULL;
     for (jR = (struct jRef *)jRefList->back;
          jR != (void *)jRefList;
@@ -4447,6 +4457,11 @@ again:
             break;
         }
     } /* for (jRef = jRefList->back; ...;...) */
+
+    if (jPtr == NULL) {
+        resetSchedulerSession();
+        return(0);
+    }
 
     TIMEVAL(0, cc = scheduleAJob(jPtr, TRUE, TRUE), tmpVal);
     dispRet = XORDispatch(jPtr, FALSE, dispatchAJob0);

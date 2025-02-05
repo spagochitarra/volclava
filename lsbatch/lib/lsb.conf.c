@@ -1,4 +1,5 @@
-/* $Id: lsb.conf.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: lsb.conf.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -375,9 +376,10 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
     static char pname[] = "do_Param";
     char *linep;
     int i, value;
+    int isSlotResReserveSet = 0;
 
     struct keymap keylist[] = {
-        {"LSB_MANAGER", NULL, 0},
+        {"LSB_MANAGER", NULL, 0},   /* 0 */
         {"DEFAULT_QUEUE", NULL, 0},
         {"DEFAULT_HOST_SPEC", 0},
         {"DEFAULT_PROJECT", NULL, 0},
@@ -387,7 +389,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"CLEAN_PERIOD", NULL, 0},
         {"MAX_RETRY", NULL, 0},
         {"SBD_SLEEP_TIME", NULL, 0},
-        {"MAX_JOB_NUM", NULL, 0},
+        {"MAX_JOB_NUM", NULL, 0},   /* 10 */
         {"RETRY_INTERVAL", NULL, 0},
         {"MAX_SBD_FAIL", NULL, 0},
         {"RUSAGE_UPDATE_RATE", NULL, 0},    /* control how often sbatchd */
@@ -400,7 +402,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"MAX_SCHED_STAY", NULL, 0},
         {"FRESH_PERIOD", NULL, 0},
         {"MAX_JOB_ARRAY_SIZE", NULL, 0},
-        {"DISABLE_UACCT_MAP", NULL, 0},
+        {"DISABLE_UACCT_MAP", NULL, 0}, /* 20 */
         {"JOB_TERMINATE_INTERVAL", NULL, 0},
         {"JOB_RUN_TIMES", NULL, 0},
         {"JOB_DEP_LAST_SUB", NULL, 0},
@@ -410,11 +412,12 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"SHARED_RESOURCE_UPDATE_FACTOR", NULL, 0},
         {"SCHE_RAW_LOAD", NULL, 0},
         {"PRE_EXEC_DELAY", NULL, 0},
-        {"SLOT_RESOURCE_RESERVE", NULL, 0},
+        {"SLOT_RESOURCE_RESERVE", NULL, 0}, /* 30 */
         {"MAX_JOBID", NULL, 0},
         {"MAX_ACCT_ARCHIVE_FILE", NULL, 0},
         {"ACCT_ARCHIVE_SIZE", NULL, 0},
         {"ACCT_ARCHIVE_AGE", NULL, 0},
+        {"RESOURCE_RESERVE_PER_TASK", NULL, 0},
         {NULL, NULL, 0}
 
     };
@@ -544,7 +547,24 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     pConf->param->acctArchiveInDays = value;
                 }
             }
-
+            else if (i == 35) {
+                if (strcasecmp(keylist[i].val, "Y") == 0) {
+                    pConf->param->resourcePerTask = TRUE;
+                } else if (strcasecmp(keylist[i].val, "N") == 0) {
+                    pConf->param->resourcePerTask = FALSE;
+                    
+                } else {
+                    ls_syslog(LOG_ERR, "%s: File %s in section Parameters ending at line %d:  unrecognizable value <%s> for the keyword RESOURCE_RESERVE_PER_TASK; Default value N used.", pname, fname, *lineNum, keylist[i].val);
+                    pConf->param->resourcePerTask = FALSE;
+                    lsberrno = LSBE_CONF_WARNING;
+                }
+                /* slotResourceReserve is to control shared resource reserved by slot or not.
+                 * If SLOT_RESOURCE_RESERVE is not defined, its value will be kept as same as RESOURCE_RESERVE_PER_TASK.
+                 */
+                if (!isSlotResReserveSet) {
+                    pConf->param->slotResourceReserve = pConf->param->resourcePerTask;
+                }
+            }
             else if (i == 3) {
                 pConf->param->defaultProject = putstr_(keylist[i].val);
                 if (pConf->param->defaultProject == NULL) {
@@ -645,7 +665,8 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     pConf->param->scheRawLoad = TRUE;
                 else
                     pConf->param->scheRawLoad = FALSE;
-            } else if (i == 30) {
+            } else if (i == 30) { /*configure shared resource reserved by slot or not*/
+                isSlotResReserveSet = 1;
                 if (strcasecmp(keylist[i].val, "Y") == 0) {
                     pConf->param->slotResourceReserve  = TRUE;
                 } else {
@@ -828,6 +849,7 @@ initParameterInfo(struct parameterInfo *param)
         param->maxAcctArchiveNum = -1;
         param->acctArchiveInDays = -1;
         param->acctArchiveInSize = -1;
+        param->resourcePerTask = FALSE;
     }
 }
 

@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
  * Copyright (C) 2011 David Bigagli
  * Copyright (C) 2007 Platform Computing Inc
  *
@@ -880,6 +881,7 @@ extern int                    slotResourceReserve;
 extern int                    maxAcctArchiveNum;
 extern int                    acctArchiveInDays;
 extern int                    acctArchiveInSize;
+extern int                    resourcePerTask;
 extern int                    lsbModifyAllJobs;
 
 
