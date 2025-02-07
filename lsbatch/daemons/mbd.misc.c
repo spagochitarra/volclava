@@ -1009,7 +1009,7 @@ getUserData (char *user)
     userEnt = h_getEnt_(&uDataList, "default");
     if (userEnt != NULL) {
         defUser = (struct uData *) userEnt->hData;
-        uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit,
+        uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit, defUser->maxPendJobs, defUser->maxPendSlots,
                             "mbatchd/getUserData", FALSE, FALSE);
         if (uData != NULL)
             return uData;
@@ -1020,7 +1020,7 @@ getUserData (char *user)
     }
 
 
-    uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT,
+    uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT, INFINIT_INT, INFINIT_INT,
                         "mbatchd/getUserData", FALSE, FALSE);
     if (uData != NULL)
         return uData;
@@ -1063,6 +1063,8 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             }
 
             uInfo->maxJobs = uData->maxJobs;
+            uInfo->maxPendJobs = uData->maxPendJobs;
+            uInfo->maxPendSlots = uData->maxPendSlots;
             uInfo->numStartJobs = uData->numJobs - uData->numPEND;
             uInfo->numJobs = uData->numJobs;
             uInfo->numPEND = uData->numPEND;
@@ -1104,8 +1106,12 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
         if (found) {
             uInfo->maxJobs = INFINIT_INT;
             uInfo->procJobLimit = INFINIT_FLOAT;
+            uInfo->maxPendJobs = INFINIT_INT;
+            uInfo->maxPendSlots = INFINIT_INT;
         } else {
             uInfo->maxJobs = uData->maxJobs;
+            uInfo->maxPendJobs = uData->maxPendJobs;
+            uInfo->maxPendSlots = uData->maxPendSlots;
             if (uData->pJobLimit >= INFINIT_FLOAT)
                 uInfo->procJobLimit = INFINIT_FLOAT;
             else
@@ -1127,7 +1133,7 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
 }
 
 struct uData *
-addUserData(char *username, int maxjobs, float pJobLimit,
+addUserData(char *username, int maxjobs, float pJobLimit, int maxPendJobs, int maxPendSlots,
             char *filename, int override, int config)
 {
     static char fname[] = "addUserData";
@@ -1167,6 +1173,8 @@ addUserData(char *username, int maxjobs, float pJobLimit,
     uData->user = safeSave(username);
     uData->pJobLimit = pJobLimit;
     uData->maxJobs   = maxjobs;
+    uData->maxPendJobs    = maxPendJobs;
+    uData->maxPendSlots   = maxPendSlots;
 
     uData->uDataIndex = UDATA_TABLE_NUM_ELEMENTS(uDataPtrTb);
 

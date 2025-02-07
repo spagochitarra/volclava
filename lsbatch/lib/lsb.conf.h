@@ -1,4 +1,7 @@
-/* $Id: lsb.conf.h 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+
+ * $Id: lsb.conf.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,7 +34,7 @@ static char do_Groups(struct groupInfoEnt **, struct Conf *, char *,
 
 static char addHost(struct hostInfoEnt *, char *, int);
 static char addQueue(struct queueInfoEnt *, char *, int);
-static char addUser (char *, int, float, char *, int, int); 
+static char addUser (char *, int, float, int, int, char *, int);
 static char addMember(struct groupInfoEnt *, char *, int, char *,
 					int, char *);
 

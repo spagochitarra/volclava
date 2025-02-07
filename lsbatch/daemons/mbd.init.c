@@ -559,6 +559,8 @@ defaultUser:
             addUserData ("default",
                          INFINIT_INT,
                          INFINIT_FLOAT,
+                         INFINIT_INT,
+                         INFINIT_INT,
                          "readUserConf",
                          FALSE,
                          TRUE);
@@ -1916,7 +1918,7 @@ addUData (struct userConf *userConf)
     removeFlags(&uDataList, USER_UPDATE, UDATA);
     for (i = 0; i < userConf->numUsers; i++) {
         uPtr = &(userConf->users[i]);
-        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit,
+        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit, uPtr->maxPendJobs, uPtr->maxPendSlots,
                     fname, TRUE, TRUE);
         if (strcmp ("default", uPtr->user) == 0)
             defUser = TRUE;

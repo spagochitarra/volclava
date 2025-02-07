@@ -408,6 +408,8 @@ struct uData {
     struct gData *gData;
     int    maxJobs;
     float  pJobLimit;
+    int    maxPendJobs;
+    int    maxPendSlots;
     struct hTab *hAcct;
     int    numPEND;
     int    numRUN;
@@ -1282,7 +1284,7 @@ extern void                 updQaccount(struct jData *jData, int, int, int,
 extern struct uData *       getUserData(char *user);
 extern struct userAcct *    getUAcct(struct hTab *, struct uData *);
 extern struct hostAcct *    getHAcct(struct hTab  *, struct hData *);
-extern struct uData *       addUserData (char *, int, float, char *, int, int);
+extern struct uData *       addUserData (char *, int, float, int, int, char *, int, int);
 extern int                  checkUsers(struct infoReq *,
                                        struct userInfoReply *);
 extern void                 checkParams (struct infoReq *,

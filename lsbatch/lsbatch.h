@@ -694,6 +694,8 @@ struct userInfoEnt {
     char   *user;
     float  procJobLimit;
     int    maxJobs;
+    int    maxPendJobs;
+    int    maxPendSlots;
     int    numStartJobs;
     int    numJobs;
     int    numPEND;

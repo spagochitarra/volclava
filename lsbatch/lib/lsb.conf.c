@@ -94,7 +94,7 @@ static char do_Groups(struct groupInfoEnt **, struct lsConf *, char *,
 static int isHostName (char *grpName);
 static int addHost(struct hostInfoEnt *, struct hostInfo *, int);
 static char addQueue(struct queueInfoEnt *, char *, int);
-static char addUser (char *, int, float, char *, int);
+static char addUser (char *, int, float, int, int, char *, int);
 static char addMember(struct groupInfoEnt *, char *, int, char *,
                       int, char *, int, int);
 
@@ -1102,6 +1102,8 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
     char *          linep;
     char *          grpSl = NULL;
     int             maxjobs;
+    int             maxPendJobs;
+    int             maxPendSlots;
     int             new;
     int             isGroupAt = FALSE;
     float           pJobLimit;
@@ -1112,6 +1114,8 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
         {"USER_NAME", NULL, 0},
         {"MAX_JOBS", NULL, 0},
         {"JL/P", NULL, 0},
+        {"MAX_PEND_JOBS", NULL, 0},
+        {"MAX_PEND_SLOTS", NULL, 0},
         {NULL, NULL, 0}
     };
 
@@ -1270,11 +1274,35 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
                     lsberrno = LSBE_CONF_WARNING;
                 }
             }
+            maxPendJobs = INFINIT_INT;
+            if (keylist[3].position >= 0 && keylist[3].val != NULL
+                && strcmp (keylist[3].val, "")) {
+
+
+                if ((maxPendJobs =  my_atoi (keylist[3].val, INFINIT_INT, -1))
+                    == INFINIT_INT) {
+                    ls_syslog(LOG_ERR, I18N(5093,
+                                            "%s: File %s at line %d: Invalid value <%s> for key <%s>; %d is assumed"), pname, fname, *lineNum, keylist[3].val, keylist[3].key, INFINIT_INT); /* catgets 5093 */
+                    lsberrno = LSBE_CONF_WARNING;
+                }
+            }
+            maxPendSlots = INFINIT_INT;
+            if (keylist[4].position >= 0 && keylist[4].val != NULL
+                && strcmp (keylist[4].val, "")) {
+
+
+                if ((maxPendSlots =  my_atoi (keylist[4].val, INFINIT_INT, -1))
+                    == INFINIT_INT) {
+                    ls_syslog(LOG_ERR, I18N(5093,
+                                            "%s: File %s at line %d: Invalid value <%s> for key <%s>; %d is assumed"), pname, fname, *lineNum, keylist[4].val, keylist[4].key, INFINIT_INT); /* catgets 5093 */
+                    lsberrno = LSBE_CONF_WARNING;
+                }
+            }
             if (!isGroupAt &&
                 (!(options & (CONF_EXPAND | CONF_NO_EXPAND)) ||
                  options == CONF_NO_CHECK)) {
                 h_addEnt_(nonOverridableUsers, keylist[0].val, 0);
-                if (!addUser(keylist[0].val, maxjobs, pJobLimit,
+                if (!addUser(keylist[0].val, maxjobs, pJobLimit, maxPendJobs, maxPendSlots,
                              fname, TRUE) && lsberrno == LSBE_NO_MEM) {
                     FREEUP (grpSl);
                     lsberrno = LSBE_NO_MEM;
@@ -1306,14 +1334,14 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
                         if (h_getEnt_(nonOverridableUsers, groupMembers[i]))
 
                             continue;
-                        addUser(groupMembers[i], maxjobs, pJobLimit,
+                        addUser(groupMembers[i], maxjobs, pJobLimit, maxPendJobs, maxPendSlots,
                                 fname, TRUE);
                     }
                 } else {
                     if (isGroupAt)
                         grpname[lastChar+1] = '@';
 
-                    addUser(grpname, maxjobs, pJobLimit, fname, TRUE);
+                    addUser(grpname, maxjobs, pJobLimit, maxPendJobs, maxPendSlots, fname, TRUE);
                 }
                 freeSA(groupMembers, numMembers);
             }
@@ -2023,6 +2051,8 @@ initUserInfo (struct userInfoEnt *up)
         up->user = NULL;
         up->procJobLimit = INFINIT_FLOAT;
         up->maxJobs = INFINIT_INT;
+        up->maxPendJobs = INFINIT_INT;
+        up->maxPendSlots = INFINIT_INT;
         up->numStartJobs = INFINIT_INT;
         up->numJobs = INFINIT_INT;
         up->numPEND = INFINIT_INT;
@@ -2059,7 +2089,7 @@ freeGroupInfo (struct groupInfoEnt *gp)
 }
 
 static char
-addUser (char *username, int maxjobs, float pJobLimit,
+addUser (char *username, int maxjobs, float pJobLimit, int maxPendJobs, int maxPendSlots,
          char *fname, int override)
 {
     struct userInfoEnt *up, **tmpUsers;
@@ -2080,6 +2110,8 @@ addUser (char *username, int maxjobs, float pJobLimit,
             }
             up->procJobLimit = pJobLimit;
             up->maxJobs = maxjobs;
+            up->maxPendJobs = maxPendJobs;
+            up->maxPendSlots = maxPendSlots;
             return (TRUE);
         } else {
             if (fname) {
@@ -2121,6 +2153,8 @@ addUser (char *username, int maxjobs, float pJobLimit,
         }
         users[numofusers]->procJobLimit = pJobLimit;
         users[numofusers]->maxJobs = maxjobs;
+        users[numofusers]->maxPendJobs = maxPendJobs;
+        users[numofusers]->maxPendSlots = maxPendSlots;
         numofusers++;
         return (TRUE);
     }
@@ -5615,7 +5649,7 @@ setDefaultUser (void)
     if (handleUserMem ())
         return (-1);
 
-    if (!addUser ("default", INFINIT_INT, INFINIT_FLOAT, "setDefaultUser", TRUE))
+    if (!addUser ("default", INFINIT_INT, INFINIT_FLOAT, INFINIT_INT, INFINIT_INT, "setDefaultUser", TRUE))
         return (FALSE);
     if ( numofusers && (uConf->users = (struct userInfoEnt *) malloc
                         (numofusers*sizeof(struct userInfoEnt))) == NULL) {
