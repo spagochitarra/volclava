@@ -1,4 +1,7 @@
-/* $Id: busers.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: busers.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,17 +34,19 @@
 #define USR_USUSP_LENGTH   6
 #define USR_RSV_LENGTH     6
 #define USR_MAX_LENGTH     6
+#define USR_MPJOBS_LENGTH  6
 
 static void display_users (struct userInfoEnt *, int);
 static void sort_users (struct userInfoEnt *, int);
 
 static char fomt[200];
+static char wflag = FALSE;
 
 void
 usage (char *cmd)
 {
     fprintf(stderr, I18N_Usage);
-    fprintf(stderr, ": %s [-h] [-V] [user_name ...] [all]\n", cmd);
+    fprintf(stderr, ": %s [-w] [-h] [-V] [user_name ...] [all]\n", cmd);
     exit(-1);
 }
 
@@ -61,14 +66,17 @@ main (int argc, char **argv)
 	exit(-1);
     }
 
-    while ((cc = getopt(argc, argv, "Vh")) != EOF) {
+    while ((cc = getopt(argc, argv, "wVh")) != EOF) {
         switch (cc) {
-	case 'V':
-	    fputs(_LS_VERSION_, stderr);
-	    exit(0);
-        case 'h':
-        default:
-            usage(argv[0]);
+            case 'w':
+                wflag = TRUE;
+                break;
+            case 'V':
+                fputs(_LS_VERSION_, stderr);
+                exit(0);
+            case 'h':
+            default:
+                usage(argv[0]);
         }
     }
     numUsers = getNames (argc, argv, optind, &users, &all, "user");
@@ -96,16 +104,17 @@ display_users (struct userInfoEnt *reply, int numReply)
     int i;
     int first = TRUE;
     char maxJobs[MAX_CHARLEN], procJobLimit[MAX_CHARLEN];
+    char maxPendJobs[MAX_CHARLEN], maxPendSlots[MAX_CHARLEN];
 
     if (first) {
-	first = FALSE;
+        first = FALSE;
 
-	if (lsbMode_ & LSB_MODE_BATCH) {
+        if (lsbMode_ & LSB_MODE_BATCH) {
             prtWord(USR_NAME_LENGTH, I18N_USER_GROUP, 0);
             prtWord(USR_JL_P_LENGTH, I18N_JL_P, -1);
             prtWord(USR_MAX_LENGTH,  I18N_MAX, -1);
-	}
-	else
+        }
+        else
             prtWord(USR_NAME_LENGTH, I18N_USER, 0);
 
         prtWord(USR_NJOBS_LENGTH, I18N_NJOBS, -1);
@@ -114,18 +123,20 @@ display_users (struct userInfoEnt *reply, int numReply)
         prtWord(USR_SSUSP_LENGTH, I18N_SSUSP, -1);
         prtWord(USR_USUSP_LENGTH, I18N_USUSP, -1);
         prtWord(USR_RSV_LENGTH,   I18N_RSV,   -1);
+        if (wflag) {
+            prtWord(USR_MPJOBS_LENGTH,I18N_MPJOBS,-1);
+        }
         printf("\n");
     }
     if (numReply > 1)
-	sort_users (reply, numReply);
+        sort_users (reply, numReply);
 
     for (i = 0; i < numReply; i++) {
-
 
         if (reply[i].procJobLimit < INFINIT_FLOAT) {
             sprintf(fomt, "%%%d.1f ", USR_JL_P_LENGTH);
             sprintf (procJobLimit, fomt, reply[i].procJobLimit);
-	}
+        }
         else
              strcpy(procJobLimit, prtDash(USR_JL_P_LENGTH) );
 
@@ -135,45 +146,75 @@ display_users (struct userInfoEnt *reply, int numReply)
         else
              strcpy(maxJobs, prtDash(USR_MAX_LENGTH) );
 
+        if (reply[i].maxPendJobs < INFINIT_INT)
+            strcpy(maxPendJobs, prtValue(USR_MAX_LENGTH, reply[i].maxPendJobs) );
+        else
+            strcpy(maxPendJobs, prtDash(USR_MAX_LENGTH) );
+
+        if (reply[i].maxPendSlots < INFINIT_INT)
+            strcpy(maxPendSlots, prtValue(USR_MAX_LENGTH, reply[i].maxPendSlots) );
+        else
+            strcpy(maxPendSlots, prtDash(USR_MAX_LENGTH) );
+
         prtWordL(USR_NAME_LENGTH, reply[i].user);
 
-	if (lsbMode_ & LSB_MODE_BATCH) {
-            sprintf(fomt, "%%%ds%%%ds", USR_JL_P_LENGTH,
-                                        USR_MAX_LENGTH );
-	    printf(fomt,
-                   procJobLimit, maxJobs);
-	};
+        if (lsbMode_ & LSB_MODE_BATCH) {
+                sprintf(fomt, "%%%ds%%%ds", USR_JL_P_LENGTH,
+                                            USR_MAX_LENGTH );
+            printf(fomt,
+                       procJobLimit, maxJobs);
+        };
 
-	if (strcmp(reply[i].user, "default") == 0) {
-            printf("%s%s%s%s%s%s\n",
+        if (strcmp(reply[i].user, "default") == 0) {
+            printf("%s%s%s%s%s%s",
                    prtDash(USR_NJOBS_LENGTH), prtDash(USR_PEND_LENGTH),
                    prtDash(USR_RUN_LENGTH),   prtDash(USR_SSUSP_LENGTH),
                    prtDash(USR_USUSP_LENGTH), prtDash(USR_RSV_LENGTH)
                    );
-	}
-	else if (reply[i].numJobs == -INFINIT_INT) {
-            printf("%s%s%s%s%s%s\n",
+            if (wflag) {
+                printf("%s", maxPendJobs);
+            }
+            printf("\n");
+        }
+        else if (reply[i].numJobs == -INFINIT_INT) {
+            printf("%s%s%s%s%s%s",
                    prtDash(USR_NJOBS_LENGTH), prtDash(USR_PEND_LENGTH),
                    prtDash(USR_RUN_LENGTH),   prtDash(USR_SSUSP_LENGTH),
                    prtDash(USR_USUSP_LENGTH), prtDash(USR_RSV_LENGTH)
                    );
-	}
+            if (wflag) {
+                printf("%s", maxPendJobs);
+            }
+            printf("\n");
+        }
         else {
-        sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd\n",
-                                                  USR_NJOBS_LENGTH,
-                                                  USR_PEND_LENGTH,
-                                                  USR_RUN_LENGTH,
-                                                  USR_SSUSP_LENGTH,
-                                                  USR_USUSP_LENGTH,
-                                                  USR_RSV_LENGTH );
-	printf(fomt,
-                reply[i].numJobs, reply[i].numPEND, reply[i].numRUN,
-                reply[i].numSSUSP, reply[i].numUSUSP, reply[i].numRESERVE);
-	};
+            if (wflag) {
+                sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd %%%ds\n",
+                        USR_NJOBS_LENGTH,
+                        USR_PEND_LENGTH,
+                        USR_RUN_LENGTH,
+                        USR_SSUSP_LENGTH,
+                        USR_USUSP_LENGTH,
+                        USR_RSV_LENGTH,
+                        USR_MPJOBS_LENGTH);
+                printf(fomt,
+                       reply[i].numJobs, reply[i].numPEND, reply[i].numRUN,
+                       reply[i].numSSUSP, reply[i].numUSUSP, reply[i].numRESERVE,
+                       maxPendJobs);
+            } else {
+                sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd\n",
+                        USR_NJOBS_LENGTH,
+                        USR_PEND_LENGTH,
+                        USR_RUN_LENGTH,
+                        USR_SSUSP_LENGTH,
+                        USR_USUSP_LENGTH,
+                        USR_RSV_LENGTH );
+                printf(fomt,
+                       reply[i].numJobs, reply[i].numPEND, reply[i].numRUN,
+                       reply[i].numSSUSP, reply[i].numUSUSP, reply[i].numRESERVE);
+            }
+        }
     }
-
-
-
 }
 
 static void

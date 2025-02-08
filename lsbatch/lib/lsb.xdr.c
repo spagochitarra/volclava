@@ -1328,6 +1328,8 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
     if (!(xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN) &&
         xdr_float(xdrs, &userInfoEnt->procJobLimit) &&
         xdr_int(xdrs, &userInfoEnt->maxJobs) &&
+        xdr_int(xdrs, &userInfoEnt->maxPendJobs) &&
+        xdr_int(xdrs, &userInfoEnt->maxPendSlots) &&
         xdr_int(xdrs, &userInfoEnt->numStartJobs)))
 
         return (FALSE);
