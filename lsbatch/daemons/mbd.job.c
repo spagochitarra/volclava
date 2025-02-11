@@ -160,11 +160,13 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     char jobIdStr[20];
     struct lenData jf;
     struct hData *hData;
+    struct uData *uData;
     struct hostInfo *hinfo;
     char hostType[MAXHOSTNAMELEN];
 
     struct idxList *idxList;
     int    maxJLimit = 0;
+    int    arraySize = 0;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -275,22 +277,45 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
 
     newjob->schedHost = safeSave (hostType);
 
+    uData = getUserData(auth->lsfUserName);
+    if (uData == NULL) {
+        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                         "%s: User <%s> is not find by LSF"), /* catgets 6501 */
+                  fname, auth->lsfUserName);
+        returnErr = LSBE_NO_USER;
+        goto error_cleanup;
+    }
 
     if ((newjob->shared->jobBill.options & SUB_RESTART) ||
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
+
+        if ((uData->numPEND + 1) > uData->maxPendJobs) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> maxPendJobs <%d> reached with "
+                                             "numPEND <%d> plus 1."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND);
+            returnErr = LSBE_JOB_MAX_PEND;
+        }
+
         if (returnErr == LSBE_NO_ERROR) {
             handleNewJob (newjob, JOB_NEW, LOG_IT);
         }
         else {
-            FREEUP (jf.data);
-            FREEUP(Reply->badJobName);
-            Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
-            freeJData(newjob);
-            return(returnErr);
+            goto error_cleanup;
         }
     }
     else {
+        arraySize += (idxList->end - idxList->start)/idxList->step + 1;
+        if ((uData->numPEND + arraySize) > uData->maxPendJobs) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> maxPendJobs <%d> reached with "
+                                             "numPEND <%d> plus job arraySize <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND, arraySize);
+            returnErr = LSBE_JOB_MAX_PEND;
+            goto error_cleanup;
+        }
+
         handleNewJobArray(newjob, idxList, maxJLimit);
         freeIdxList(idxList);
     }
@@ -303,6 +328,12 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
 
     return(LSBE_NO_ERROR);
 
+error_cleanup:
+    FREEUP (jf.data);
+    FREEUP(Reply->badJobName);
+    Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
+    freeJData(newjob);
+    return(returnErr);
 }
 
 struct hData *

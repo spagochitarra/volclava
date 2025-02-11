@@ -1,4 +1,7 @@
-/* $Id: lsb.err.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsb.err.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,7 +39,7 @@ static int lsb_errmsg_ID[] = {
      200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
      210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
      220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
-     230, 231
+     230, 231, 232
 };
 #endif
 
@@ -185,6 +188,7 @@ char   *lsb_errmsg[] = {
 /*129*/   "No error file specified before job dispatch. Error file does not exist, so error file name cannot be changed", /*catgets 229 */
 /*130*/   "The host is locked by master LIM", /* catgets 230 */
 /*131*/  "Dependent arrays do not have the same size", /* catgets 231 */
+/*132*/  "Pending job threshold reached", /* catgets 232 */
 
 /* when you add a new message here, remember two things: first do not
  * forget to add "," after the error message; second, add its catgets
@@ -198,8 +202,8 @@ lsb_sysmsg (void)
 {
     static char buf[512];
 
-    if (lsberrno >= LSBE_NUM_ERR) {
-	sprintf(buf, _i18n_msg_get(ls_catd, NL_SETN, 99, "Unknown batch system error number %d"), lsberrno);  /* catgets 99 */
+    if (lsberrno > LSBE_NUM_ERR) {
+        sprintf(buf, _i18n_msg_get(ls_catd, NL_SETN, 99, "Unknown batch system error number %d"), lsberrno);  /* catgets 99 */
         return buf;
     }
 

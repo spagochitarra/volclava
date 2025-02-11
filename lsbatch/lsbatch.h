@@ -451,8 +451,8 @@
 #define    LSBE_MOD_ERRFILE         129
 #define    LSBE_LOCKED_MASTER       130
 #define    LSBE_DEP_ARRAY_SIZE      131
-#define    LSBE_NUM_ERR             131
-
+#define    LSBE_JOB_MAX_PEND        132
+#define    LSBE_NUM_ERR             132
 
 
 #define PREPARE_FOR_OP          1024
