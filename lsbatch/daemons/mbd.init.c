@@ -1864,6 +1864,7 @@ setParams(struct paramConf *paramConf)
     setString(lsfDefaultProject, params->defaultProject);
 
     setValue(msleeptime, params->mbatchdInterval);
+    setValue(subTryInterval, params->subTryInterval);
     setValue(sbdSleepTime, params->sbatchdInterval);
     setValue(accept_intvl, params->jobAcceptInterval);
     setValue(max_retry, params->maxDispRetries);
@@ -2093,6 +2094,7 @@ setDefaultParams(void)
     FREEUP (pjobSpoolDir);
 
     msleeptime = DEF_MSLEEPTIME;
+    subTryInterval = DEF_SUB_TRY_INTERVAL;
     sbdSleepTime = DEF_SSLEEPTIME;
     accept_intvl = DEF_ACCEPT_INTVL;
     max_retry = DEF_MAX_RETRY;

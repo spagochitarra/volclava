@@ -402,6 +402,7 @@ xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct LSFHeader *h
     }
     if (!(xdr_int(xdrs,&(jobArrId)) &&
 	  xdr_int(xdrs,&(reply->badReqIndx)) &&
+	  xdr_int(xdrs,&(reply->subTryInterval)) &&
 	  xdr_string(xdrs, &reply->queue, MAX_LSB_NAME_LEN) &&
 	  xdr_string(xdrs, &reply->badJobName, MAX_CMD_DESC_LEN)))
 	return (FALSE);
@@ -434,6 +435,7 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
 
     if (!(xdr_int(xdrs,&(paramInfo->mbatchdInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->sbatchdInterval)) &&
+	  xdr_int(xdrs,&(paramInfo->subTryInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->jobAcceptInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->maxDispRetries)) &&
 	  xdr_int(xdrs,&(paramInfo->maxSbdRetries)) &&

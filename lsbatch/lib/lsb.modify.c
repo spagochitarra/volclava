@@ -207,6 +207,7 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
         submitReply->badReqIndx = 0;
         submitReply->queue = "";
         submitReply->badJobName = "";
+        submitReply->subTryInterval = DEF_SUB_TRY_INTERVAL;
         return (-1);
     }
 
@@ -238,6 +239,7 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     submitReply->badReqIndx = reply->badReqIndx;
     submitReply->queue = reply->queue;
     submitReply->badJobName = reply->badJobName;
+    submitReply->subTryInterval = reply->subTryInterval;
 
 
     if (lsberrno == LSBE_NO_ERROR) {

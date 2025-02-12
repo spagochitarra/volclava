@@ -52,6 +52,7 @@ int    managerId    = 0;
 uid_t  batchId      = 0;
 int    jobTerminateInterval = DEF_JTERMINATE_INTERVAL;
 int    msleeptime   = DEF_MSLEEPTIME;
+int    subTryInterval   = DEF_SUB_TRY_INTERVAL;
 int    sbdSleepTime = DEF_SSLEEPTIME;
 int    preemPeriod  = DEF_PREEM_PERIOD;
 int    pgSuspIdleT  = DEF_PG_SUSP_IT;

@@ -418,6 +418,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"ACCT_ARCHIVE_SIZE", NULL, 0},
         {"ACCT_ARCHIVE_AGE", NULL, 0},
         {"RESOURCE_RESERVE_PER_TASK", NULL, 0},
+        {"SUB_TRY_INTERVAL", NULL, 0},
         {NULL, NULL, 0}
 
     };
@@ -672,6 +673,18 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                 } else {
                     pConf->param->slotResourceReserve = FALSE;
                 }
+            } else if (i == 36) {
+                int value = 0;
+                value = my_atoi(keylist[i].val, INFINIT_INT, 0);
+
+                if (value == INFINIT_INT) {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5071,
+                                                     "%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive integer between 1 and %d; ignored"), pname, fname, *lineNum, keylist[i].val, keylist[i].key, INFINIT_INT - 1); /* catgets 5071 */
+                    lsberrno = LSBE_CONF_WARNING;
+                    pConf->param->subTryInterval = DEF_SUB_TRY_INTERVAL;
+                } else {
+                    pConf->param->subTryInterval = value;
+                }
             } else if (i > 5) {
                 if ( i < 23)
                     value = my_atoi(keylist[i].val, INFINIT_INT, 0);
@@ -850,6 +863,7 @@ initParameterInfo(struct parameterInfo *param)
         param->acctArchiveInDays = -1;
         param->acctArchiveInSize = -1;
         param->resourcePerTask = FALSE;
+        param->subTryInterval = INFINIT_INT;
     }
 }
 

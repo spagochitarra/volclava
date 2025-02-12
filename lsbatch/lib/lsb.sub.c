@@ -310,6 +310,7 @@ getCommonParams (struct submit  *jobSubReq, struct submitReq *submitReq,
     submitReq->options = jobSubReq->options;
     submitReq->options2 = jobSubReq->options2;
 
+    submitRep->subTryInterval = DEF_SUB_TRY_INTERVAL;
 
     if (jobSubReq->options & SUB_DEPEND_COND) {
         if (dependCondSyntax(jobSubReq->dependCond) < 0)
@@ -729,6 +730,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
 	submitReply->badReqIndx = 0;
 	submitReply->queue = "";
 	submitReply->badJobName = "";
+	submitReply->subTryInterval = DEF_SUB_TRY_INTERVAL;
 	return (-1);
     }
 
@@ -760,6 +762,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
     submitReply->badReqIndx = reply->badReqIndx;
     submitReply->queue = reply->queue;
     submitReply->badJobName = reply->badJobName;
+    submitReply->subTryInterval = reply->subTryInterval;
 
     if (lsberrno == LSBE_NO_ERROR) {
 	if (reply->jobId == 0)

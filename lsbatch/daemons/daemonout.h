@@ -149,6 +149,7 @@ struct submitMbdReply {
     LS_LONG_INT jobId;
     char    *queue;
     int     badReqIndx;
+    int     subTryInterval;
     char    *badJobName;
 };
 

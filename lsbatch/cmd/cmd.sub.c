@@ -81,7 +81,7 @@ do_sub (int argc, char **argv, int option)
     struct submitReply  reply;
     static int nRetries = 6;
     static int countTries = 1;
-    static int retryInterval = 60;
+    static int subTryInterval = DEF_SUB_TRY_INTERVAL;
     static char *envLSBNTries;
     LS_LONG_INT jobId = -1;
 
@@ -118,6 +118,8 @@ do_sub (int argc, char **argv, int option)
                 break;
             }
 
+            subTryInterval = reply.subTryInterval;
+
             prtErrMsg (&req, &reply);
 
             if (lsberrno != LSBE_JOB_MAX_PEND) {
@@ -132,10 +134,10 @@ do_sub (int argc, char **argv, int option)
             }
 
             fprintf(stderr,
-                    (_i18n_msg_get(ls_catd,NL_SETN,1562, ". Retrying in %d seconds...\n")), retryInterval);
+                    (_i18n_msg_get(ls_catd,NL_SETN,1562, ". Retrying in %d seconds...\n")), subTryInterval);
 
             countTries++;
-            sleep(retryInterval);
+            sleep(subTryInterval);
         } while (jobId < 0 && countTries <= nRetries);
     }
 

@@ -564,6 +564,7 @@ struct submitReply {
      LS_LONG_INT  badJobId;
      char    *badJobName;
      int     badReqIndx;
+     int     subTryInterval;
 };
 
 struct submig {
@@ -800,6 +801,7 @@ struct hostInfoEnt {
 #define DEF_MAX_JOBID   999999
 #define MAX_JOBID_LOW   999999
 #define MAX_JOBID_HIGH 9999999
+#define DEF_SUB_TRY_INTERVAL 60
 
 struct parameterInfo {
     char *defaultQueues;
@@ -838,6 +840,7 @@ struct parameterInfo {
     int  acctArchiveInDays;
     int  acctArchiveInSize;
     int  resourcePerTask;
+    int  subTryInterval;
 };
 
 

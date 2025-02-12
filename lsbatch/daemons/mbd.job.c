@@ -332,6 +332,7 @@ error_cleanup:
     FREEUP (jf.data);
     FREEUP(Reply->badJobName);
     Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
+//    Reply->subTryInterval = subTryInterval;
     freeJData(newjob);
     return(returnErr);
 }
@@ -6109,6 +6110,8 @@ checkJobParams (struct jData *job, struct submitReq *subReq,
         Reply = &replyTmp;
         Reply->badJobName = NULL;
     }
+
+    Reply->subTryInterval = subTryInterval;
 
     if (strcmp(subReq->projectName, "") == 0) {
         FREEUP (subReq->projectName);
