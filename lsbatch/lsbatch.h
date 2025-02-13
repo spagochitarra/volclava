@@ -841,6 +841,8 @@ struct parameterInfo {
     int  acctArchiveInSize;
     int  resourcePerTask;
     int  subTryInterval;
+    int  maxPendJobs;
+    int  maxPendSlots;
 };
 
 

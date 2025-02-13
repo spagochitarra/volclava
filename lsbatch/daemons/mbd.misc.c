@@ -1258,6 +1258,8 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
         reply->defaultHostSpec = "";
     reply->mbatchdInterval = msleeptime;
     reply->subTryInterval = subTryInterval;
+    reply->maxPendJobs = maxPendJobs;
+    reply->maxPendSlots = maxPendSlots;
     reply->sbatchdInterval = sbdSleepTime;
     reply->jobAcceptInterval = accept_intvl;
 

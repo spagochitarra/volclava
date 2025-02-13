@@ -897,6 +897,8 @@ extern int                    maxjobnum;
 
 extern int                    msleeptime;
 extern int                    subTryInterval;
+extern int                    maxPendJobs;
+extern int                    maxPendSlots;
 extern int                    numRemoveJobs;
 extern int                    eventPending;
 extern int                    qAttributes;

@@ -147,6 +147,7 @@ static int   switchAJob(struct jobSwitchReq *,
                         struct lsfAuth      *,
                         struct qData        *);
 static int   moveAJob (struct jobMoveReq *, int log, struct lsfAuth *);
+static int staticNumPendJobs (void);
 
 int
 newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
@@ -167,6 +168,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     struct idxList *idxList;
     int    maxJLimit = 0;
     int    arraySize = 0;
+    int totalNumPendJobs = 0;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -286,6 +288,8 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         goto error_cleanup;
     }
 
+    totalNumPendJobs = staticNumPendJobs();
+
     if ((newjob->shared->jobBill.options & SUB_RESTART) ||
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
@@ -293,8 +297,16 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         if ((uData->numPEND + 1) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "numPEND <%d> plus 1."), /* catgets 6501 */
+                                             "user numPEND <%d> plus 1."), /* catgets 6501 */
                       fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND);
+            returnErr = LSBE_JOB_MAX_PEND;
+        }
+
+        if ((totalNumPendJobs + 1) > maxPendJobs) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
+                                             "total numPEND <%d> plus 1."), /* catgets 6501 */
+                      fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs);
             returnErr = LSBE_JOB_MAX_PEND;
         }
 
@@ -310,8 +322,17 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         if ((uData->numPEND + arraySize) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "numPEND <%d> plus job arraySize <%d>."), /* catgets 6501 */
+                                             "user numPEND <%d> plus job arraySize <%d>."), /* catgets 6501 */
                       fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND, arraySize);
+            returnErr = LSBE_JOB_MAX_PEND;
+            goto error_cleanup;
+        }
+
+        if ((totalNumPendJobs + arraySize) > maxPendJobs) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
+                                             "total numPEND <%d> plus arraySize <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, arraySize);
             returnErr = LSBE_JOB_MAX_PEND;
             goto error_cleanup;
         }
@@ -8977,3 +8998,14 @@ static int checkSubHost(struct jData *job)
     return LSBE_NO_ERROR;
 }
 
+static int staticNumPendJobs (void)
+{
+    int numPend = 0;
+    struct qData *qp;
+
+    for (qp = qDataList->forw; qp != qDataList; qp = qp->forw) {
+        numPend += qp->numPEND;
+    }
+
+    return numPend;
+}

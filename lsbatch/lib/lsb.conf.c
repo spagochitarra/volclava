@@ -419,6 +419,8 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"ACCT_ARCHIVE_AGE", NULL, 0},
         {"RESOURCE_RESERVE_PER_TASK", NULL, 0},
         {"SUB_TRY_INTERVAL", NULL, 0},
+        {"MAX_PEND_JOBS", NULL, 0},
+        {"MAX_PEND_SLOTS", NULL, 0},
         {NULL, NULL, 0}
 
     };
@@ -686,7 +688,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     pConf->param->subTryInterval = value;
                 }
             } else if (i > 5) {
-                if ( i < 23)
+                if ( i < 23 || i > 36)
                     value = my_atoi(keylist[i].val, INFINIT_INT, 0);
                 else
                     value = atoi(keylist[i].val);
@@ -769,6 +771,12 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                             break;
                         case 29:
                             pConf->param->preExecDelay = value;
+                            break;
+                        case 37:
+                            pConf->param->maxPendJobs = value;
+                            break;
+                        case 38:
+                            pConf->param->maxPendSlots = value;
                             break;
                         default:
                             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5074,
@@ -864,6 +872,8 @@ initParameterInfo(struct parameterInfo *param)
         param->acctArchiveInSize = -1;
         param->resourcePerTask = FALSE;
         param->subTryInterval = INFINIT_INT;
+        param->maxPendJobs = INFINIT_INT;
+        param->maxPendSlots = INFINIT_INT;
     }
 }
 
