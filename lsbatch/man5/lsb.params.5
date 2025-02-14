@@ -702,3 +702,59 @@ shared resource update interval is in seconds.
 Undefined (all resources are updated only once, at the start of each 
 dispatch turn).
 .PP
+.SH MAX_PEND_SLOTS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_PEND_SLOTS = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of pending job slots available in the system.
+.SS Default
+.BR
+.PP
+.PP
+2147483647 (Unlimited number of pending jobs.)
+.SH MAX_PEND_JOBS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_PEND_JOBS = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of pending jobs in the cluster.
+.SS Default
+.BR
+.PP
+.PP
+2147483647 (Unlimited number of pending jobs.)
+.SH SUB_TRY_INTERVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSUB_TRY_INTERVAL = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The number of seconds for the requesting client to wait before
+resubmitting a job. This is sent by mbatchd to the client.
+.SS Default
+.BR
+.PP
+.PP
+60 seconds
+.PP
