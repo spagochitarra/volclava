@@ -148,6 +148,7 @@ static int   switchAJob(struct jobSwitchReq *,
                         struct qData        *);
 static int   moveAJob (struct jobMoveReq *, int log, struct lsfAuth *);
 static int staticNumPendJobs (void);
+static void initUserGroup (struct uData *);
 
 int
 newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
@@ -169,6 +170,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     int    maxJLimit = 0;
     int    arraySize = 0;
     int totalNumPendJobs = 0;
+    int    i;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -287,6 +289,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         returnErr = LSBE_NO_USER;
         goto error_cleanup;
     }
+    initUserGroup(uData);
 
     totalNumPendJobs = staticNumPendJobs();
 
@@ -308,6 +311,18 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
                                              "total numPEND <%d> plus 1."), /* catgets 6501 */
                       fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs);
             returnErr = LSBE_JOB_MAX_PEND;
+        }
+
+        for (i = 0; i < uData->numGrpPtr; i++) {
+            struct uData *ugp = uData->gPtr[i];
+            if ((ugp->numPEND + 1) > ugp->maxPendJobs) {
+                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                                 " numPEND <%d> plus 1."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPEND);
+                returnErr = LSBE_JOB_MAX_PEND;
+                break;
+            }
         }
 
         if (returnErr == LSBE_NO_ERROR) {
@@ -335,6 +350,18 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
                       fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, arraySize);
             returnErr = LSBE_JOB_MAX_PEND;
             goto error_cleanup;
+        }
+
+        for (i = 0; i < uData->numGrpPtr; i++) {
+            struct uData *ugp = uData->gPtr[i];
+            if ((ugp->numPEND + arraySize) > ugp->maxPendJobs) {
+                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                                 " numPEND <%d> plus arraySize <%d>."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPEND, arraySize);
+                returnErr = LSBE_JOB_MAX_PEND;
+                goto error_cleanup;
+            }
         }
 
         handleNewJobArray(newjob, idxList, maxJLimit);
@@ -9008,4 +9035,42 @@ static int staticNumPendJobs (void)
     }
 
     return numPend;
+}
+
+static void initUserGroup (struct uData *uData)
+{
+    // reference from updUserData
+    int numNew=0;
+    int k=0;
+    struct uData **grpPtr = NULL;
+    struct uData *ugp;
+
+    if (!(uData->flags & USER_INIT)) {
+
+        if (grpPtr == NULL && numofugroups > 0) {
+            grpPtr = (struct uData **) my_calloc(numofugroups,
+                                                 sizeof(struct uData *), "updUserList");
+        }
+
+        for (k = 0; k < numofugroups; k++) {
+            if (!gMember(uData->user, usergroups[k]))
+                continue;
+            if ((ugp = getUserData(usergroups[k]->group)) == NULL)
+                continue;
+            ugp->gData = usergroups[k];
+            grpPtr[numNew++] = ugp;
+        }
+        FREEUP(uData->gPtr);
+        if (numNew > 0) {
+            uData->gPtr = (struct uData **) my_calloc(numNew,
+                                                      sizeof(struct uData *), "updUserList");
+        }
+
+        for (k = 0; k < numNew; k++) {
+            uData->gPtr[k] = grpPtr[k];
+        }
+        uData->numGrpPtr = numNew;
+        uData->flags |= USER_INIT;
+    }
+
 }
