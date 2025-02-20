@@ -169,8 +169,9 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     struct idxList *idxList;
     int    maxJLimit = 0;
     int    arraySize = 0;
-    int totalNumPendJobs = 0;
+    int    totalNumPendJobs = 0;
     int    i;
+    LIST_T * list = NULL;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -291,7 +292,12 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     }
     initUserGroup(uData);
 
-    totalNumPendJobs = staticNumPendJobs();
+//    totalNumPendJobs = staticNumPendJobs();
+    list = (LIST_T *)jDataList[PJL];
+    totalNumPendJobs = list->numEnts;
+    ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                     "%s: debug jDataList[PJL] numEnts <%d>."), /* catgets 6501 */
+              fname, totalNumPendJobs);
 
     if ((newjob->shared->jobBill.options & SUB_RESTART) ||
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
