@@ -700,7 +700,8 @@ struct userInfoEnt {
     int    maxPendSlots;
     int    numStartJobs;
     int    numJobs;
-    int    numPEND;
+    int    numPEND;// pend slots
+    int    numPENDJobs;
     int    numRUN;
     int    numSSUSP;
     int    numUSUSP;

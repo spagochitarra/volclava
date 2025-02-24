@@ -411,7 +411,8 @@ struct uData {
     int    maxPendJobs;
     int    maxPendSlots;
     struct hTab *hAcct;
-    int    numPEND;
+    int    numPEND;// pend slots
+    int    numPENDJobs;
     int    numRUN;
     int    numSSUSP;
     int    numUSUSP;

@@ -885,7 +885,10 @@ updUserData1 (struct jData *jData, struct uData *up, int numJobs,
 {
     static char       fname[] = "updUserData1";
     bool_t            newJob;
+    int               countPENDJobs;
 
+    countPENDJobs = (numPEND / jData->shared->jobBill.maxNumProcessors);
+    addValue (&up->numPENDJobs, countPENDJobs, jData, fname, "numPENDJobs");
 
 
     addValue (&up->numJobs, numJobs, jData, fname, "numJobs");
@@ -894,6 +897,7 @@ updUserData1 (struct jData *jData, struct uData *up, int numJobs,
     addValue (&up->numSSUSP, numSSUSP, jData, fname, "numSSUSP");
     addValue (&up->numUSUSP, numUSUSP, jData, fname, "numUSUSP");
     addValue (&up->numRESERVE, numRESERVE, jData, fname, "numRESERVE");
+
 
     if (logclass & LC_JLIMIT)
         ls_syslog(LOG_DEBUG3, "\
@@ -1068,6 +1072,7 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             uInfo->numStartJobs = uData->numJobs - uData->numPEND;
             uInfo->numJobs = uData->numJobs;
             uInfo->numPEND = uData->numPEND;
+            uInfo->numPENDJobs = uData->numPENDJobs;
             uInfo->numRUN  = uData->numRUN;
             uInfo->numSSUSP = uData->numSSUSP;
             uInfo->numUSUSP = uData->numUSUSP;
@@ -1121,6 +1126,7 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             - uData->numPEND - uData->numRESERVE;
         uInfo->numJobs = uData->numJobs;
         uInfo->numPEND = uData->numPEND;
+        uInfo->numPENDJobs = uData->numPENDJobs;
         uInfo->numRUN  = uData->numRUN;
         uInfo->numSSUSP = uData->numSSUSP;
         uInfo->numUSUSP = uData->numUSUSP;
@@ -1508,6 +1514,7 @@ initUData(struct uData *uPtr)
     uPtr->flags = 0;
     uPtr->numJobs   = 0;
     uPtr->numPEND   = 0;
+    uPtr->numPENDJobs  = 0;
     uPtr->numRUN    = 0;
     uPtr->numSSUSP  = 0;
     uPtr->numUSUSP  = 0;

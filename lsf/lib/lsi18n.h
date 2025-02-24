@@ -825,6 +825,10 @@
      (I18N_m(5016,"User Priority"))         /*catgets5016*/
 #define I18N_MPJOBS \
      (I18N_m(5017,"MPJOBS"))         /*catgets5017*/
+#define I18N_PJOBS \
+     (I18N_m(5018,"PJOBS"))         /*catgets5017*/
+#define I18N_MPEND \
+     (I18N_m(5019,"MPEND"))         /*catgets5017*/
 
 #define I18N_View \
      (I18N_m(5200,"View"))        /*catgets5200*/

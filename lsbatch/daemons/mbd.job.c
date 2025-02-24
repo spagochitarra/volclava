@@ -303,12 +303,22 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
 
+        // lsb.users MAX_PEND_SLOTS
+        if ((uData->numPEND + newjob->shared->jobBill.numProcessors) > uData->maxPendSlots) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> maxPendSlots <%d> reached with "
+                                             "user numPEND <%d> plus numProcessors <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendSlots, uData->numPEND,
+                      newjob->shared->jobBill.numProcessors);
+            returnErr = LSBE_SLOTS_MAX_PEND;
+        }
+
         // lsb.users MAX_PEND_JOBS
-        if ((uData->numPEND + 1) > uData->maxPendJobs) {
+        if ((uData->numPENDJobs + 1) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "user numPEND <%d> plus 1."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND);
+                                             "user numPENDJobs <%d> plus 1."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPENDJobs);
             returnErr = LSBE_JOB_MAX_PEND;
         }
 
@@ -331,14 +341,27 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             returnErr = LSBE_SLOTS_MAX_PEND;
         }
 
-        // lsb.users UserGroup MAX_PEND_JOBS
+        // lsb.users UserGroup
         for (i = 0; i < uData->numGrpPtr; i++) {
             struct uData *ugp = uData->gPtr[i];
-            if ((ugp->numPEND + 1) > ugp->maxPendJobs) {
+
+            // lsb.users UserGroup MAX_PEND_SLOTS
+            if ((ugp->numPEND + newjob->shared->jobBill.numProcessors) > ugp->maxPendSlots) {
+                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                                 "%s: User <%s> in userGroup <%s> reached maxPendSlots <%d> with "
+                                                 " numPEND <%d> plus numProcessors <%d>."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND,
+                          newjob->shared->jobBill.numProcessors);
+                returnErr = LSBE_SLOTS_MAX_PEND;
+                break;
+            }
+
+            // lsb.users UserGroup MAX_PEND_JOBS
+            if ((ugp->numPENDJobs + 1) > ugp->maxPendJobs) {
                 ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                                  "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
-                                                 " numPEND <%d> plus 1."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPEND);
+                                                 " numPENDJobs <%d> plus 1."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPENDJobs);
                 returnErr = LSBE_JOB_MAX_PEND;
                 break;
             }
@@ -354,12 +377,25 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     else {
         arraySize += (idxList->end - idxList->start)/idxList->step + 1;
 
+        // lsb.users MAX_PEND_SLOTS
+        if ((uData->numPEND + (arraySize * newjob->shared->jobBill.numProcessors)) > uData->maxPendSlots) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> maxPendSlots <%d> reached with "
+                                             "user numPEND <%d> plus job "
+                                             "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendSlots, uData->numPEND, arraySize,
+                      newjob->shared->jobBill.numProcessors);
+            returnErr = LSBE_SLOTS_MAX_PEND;
+            goto error_cleanup;
+        }
+
         // lsb.users MAX_PEND_JOBS
-        if ((uData->numPEND + arraySize) > uData->maxPendJobs) {
+        if ((uData->numPENDJobs + arraySize) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "user numPEND <%d> plus job arraySize <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPEND, arraySize);
+                                             "user numPENDJobs <%d> plus job "
+                                             "arraySize <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPENDJobs, arraySize);
             returnErr = LSBE_JOB_MAX_PEND;
             goto error_cleanup;
         }
@@ -378,7 +414,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         if ((pendJobSlots + (arraySize * newjob->shared->jobBill.numProcessors)) > maxPendSlots) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> reached lsb.params maxPendSlots <%d> with "
-                                             "total numPENDSlots <%d> plus "
+                                             "total numPENDSlots <%d> plus job"
                                              "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
                       fname, auth->lsfUserName, maxPendSlots, pendJobSlots, arraySize,
                       newjob->shared->jobBill.numProcessors);
@@ -386,14 +422,29 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             goto error_cleanup;
         }
 
-        // lsb.users UserGroup MAX_PEND_JOBS
+        // lsb.users UserGroup
         for (i = 0; i < uData->numGrpPtr; i++) {
             struct uData *ugp = uData->gPtr[i];
-            if ((ugp->numPEND + arraySize) > ugp->maxPendJobs) {
+
+            // lsb.users UserGroup MAX_PEND_SLOTS
+            if ((ugp->numPEND + (arraySize * newjob->shared->jobBill.numProcessors)) > ugp->maxPendSlots) {
                 ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                                  "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
-                                                 " numPEND <%d> plus arraySize <%d>."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPEND, arraySize);
+                                                 " numPEND <%d> plus job "
+                                                 "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND, arraySize,
+                          newjob->shared->jobBill.numProcessors);
+                returnErr = LSBE_SLOTS_MAX_PEND;
+                goto error_cleanup;
+            }
+
+            // lsb.users UserGroup MAX_PEND_JOBS
+            if ((ugp->numPENDJobs + arraySize) > ugp->maxPendJobs) {
+                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                                 " numPENDJobs <%d> plus job "
+                                                 "arraySize <%d>."), /* catgets 6501 */
+                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPENDJobs, arraySize);
                 returnErr = LSBE_JOB_MAX_PEND;
                 goto error_cleanup;
             }

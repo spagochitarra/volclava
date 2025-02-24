@@ -1342,6 +1342,7 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
 
     if (!(xdr_int(xdrs, &userInfoEnt->numJobs) &&
             xdr_int(xdrs, &userInfoEnt->numPEND) &&
+            xdr_int(xdrs, &userInfoEnt->numPENDJobs) &&
             xdr_int(xdrs, &userInfoEnt->numRUN) &&
             xdr_int(xdrs, &userInfoEnt->numSSUSP) &&
             xdr_int(xdrs, &userInfoEnt->numUSUSP)))

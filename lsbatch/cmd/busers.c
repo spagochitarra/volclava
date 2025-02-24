@@ -35,6 +35,8 @@
 #define USR_RSV_LENGTH     6
 #define USR_MAX_LENGTH     6
 #define USR_MPJOBS_LENGTH  6
+#define USR_PJOBS_LENGTH   6
+#define USR_MPEND_LENGTH   6
 
 static void display_users (struct userInfoEnt *, int);
 static void sort_users (struct userInfoEnt *, int);
@@ -124,6 +126,8 @@ display_users (struct userInfoEnt *reply, int numReply)
         prtWord(USR_USUSP_LENGTH, I18N_USUSP, -1);
         prtWord(USR_RSV_LENGTH,   I18N_RSV,   -1);
         if (wflag) {
+            prtWord(USR_MPEND_LENGTH,I18N_MPEND,-1);
+            prtWord(USR_PJOBS_LENGTH,I18N_PJOBS,-1);
             prtWord(USR_MPJOBS_LENGTH,I18N_MPJOBS,-1);
         }
         printf("\n");
@@ -172,7 +176,9 @@ display_users (struct userInfoEnt *reply, int numReply)
                    prtDash(USR_USUSP_LENGTH), prtDash(USR_RSV_LENGTH)
                    );
             if (wflag) {
-                printf("%s", maxPendJobs);
+                printf("%s%s%s",
+                       maxPendSlots, prtDash(USR_PJOBS_LENGTH), maxPendJobs
+                );
             }
             printf("\n");
         }
@@ -183,24 +189,28 @@ display_users (struct userInfoEnt *reply, int numReply)
                    prtDash(USR_USUSP_LENGTH), prtDash(USR_RSV_LENGTH)
                    );
             if (wflag) {
-                printf("%s", maxPendJobs);
+                printf("%s%s%s",
+                       maxPendSlots, prtDash(USR_PJOBS_LENGTH), maxPendJobs
+                );
             }
             printf("\n");
         }
         else {
             if (wflag) {
-                sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd %%%ds\n",
+                sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd %%%ds %%%dd %%%ds\n",
                         USR_NJOBS_LENGTH,
                         USR_PEND_LENGTH,
                         USR_RUN_LENGTH,
                         USR_SSUSP_LENGTH,
                         USR_USUSP_LENGTH,
                         USR_RSV_LENGTH,
+                        USR_MPEND_LENGTH,
+                        USR_PJOBS_LENGTH,
                         USR_MPJOBS_LENGTH);
                 printf(fomt,
                        reply[i].numJobs, reply[i].numPEND, reply[i].numRUN,
                        reply[i].numSSUSP, reply[i].numUSUSP, reply[i].numRESERVE,
-                       maxPendJobs);
+                       maxPendSlots, reply[i].numPENDJobs, maxPendJobs);
             } else {
                 sprintf(fomt, "%%%dd %%%dd %%%dd %%%dd %%%dd %%%dd\n",
                         USR_NJOBS_LENGTH,
