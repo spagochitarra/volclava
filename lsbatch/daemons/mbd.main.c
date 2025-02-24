@@ -102,6 +102,7 @@ LIST_T *hostList = NULL;
 
 struct qData *qDataList = NULL;
 struct jData *jDataList[ALLJLIST];
+int    pendJobSlots = 0;
 struct jData *chkJList;
 
 struct hTab cpuFactors;

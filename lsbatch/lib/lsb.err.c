@@ -39,7 +39,7 @@ static int lsb_errmsg_ID[] = {
      200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
      210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
      220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
-     230, 231, 232
+     230, 231, 232, 233
 };
 #endif
 
@@ -189,6 +189,7 @@ char   *lsb_errmsg[] = {
 /*130*/   "The host is locked by master LIM", /* catgets 230 */
 /*131*/  "Dependent arrays do not have the same size", /* catgets 231 */
 /*132*/  "Pending job threshold reached", /* catgets 232 */
+/*133*/  "Pending job slots threshold reached", /* catgets 233 */
 
 /* when you add a new message here, remember two things: first do not
  * forget to add "," after the error message; second, add its catgets

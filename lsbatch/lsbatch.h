@@ -452,7 +452,8 @@
 #define    LSBE_LOCKED_MASTER       130
 #define    LSBE_DEP_ARRAY_SIZE      131
 #define    LSBE_JOB_MAX_PEND        132
-#define    LSBE_NUM_ERR             132
+#define    LSBE_SLOTS_MAX_PEND      133
+#define    LSBE_NUM_ERR             133
 
 
 #define PREPARE_FOR_OP          1024

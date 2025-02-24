@@ -122,8 +122,8 @@ do_sub (int argc, char **argv, int option)
 
             prtErrMsg (&req, &reply);
 
-            if (lsberrno != LSBE_JOB_MAX_PEND) {
-                // currently only retry on LSBE_JOB_MAX_PEND
+            if (lsberrno != LSBE_JOB_MAX_PEND && lsberrno != LSBE_SLOTS_MAX_PEND) {
+                // currently only retry on LSBE_JOB_MAX_PEND or LSBE_SLOTS_MAX_PEND
                 countTries = nRetries;
             }
 
@@ -931,6 +931,7 @@ prtErrMsg (struct submit *req, struct submitReply *reply)
         sub_perror (req->hostSpec);
         break;
     case LSBE_JOB_MAX_PEND:
+    case LSBE_SLOTS_MAX_PEND:
         sprintf(tmpBuf, "User <%s>", getenv("USER"));
         sub_perror (tmpBuf);
         break;

@@ -303,6 +303,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
 
+        // lsb.users MAX_PEND_JOBS
         if ((uData->numPEND + 1) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
@@ -311,6 +312,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             returnErr = LSBE_JOB_MAX_PEND;
         }
 
+        // lsb.params MAX_PEND_JOBS
         if ((totalNumPendJobs + 1) > maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
@@ -319,6 +321,17 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             returnErr = LSBE_JOB_MAX_PEND;
         }
 
+        // lsb.params MAX_PEND_SLOTS
+        if ((pendJobSlots + newjob->shared->jobBill.numProcessors) > maxPendSlots) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> reached lsb.params maxPendSlots <%d> with "
+                                             "total numPENDSlots <%d> plus numProcessors <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, maxPendSlots, pendJobSlots,
+                      newjob->shared->jobBill.numProcessors);
+            returnErr = LSBE_SLOTS_MAX_PEND;
+        }
+
+        // lsb.users UserGroup MAX_PEND_JOBS
         for (i = 0; i < uData->numGrpPtr; i++) {
             struct uData *ugp = uData->gPtr[i];
             if ((ugp->numPEND + 1) > ugp->maxPendJobs) {
@@ -340,6 +353,8 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     }
     else {
         arraySize += (idxList->end - idxList->start)/idxList->step + 1;
+
+        // lsb.users MAX_PEND_JOBS
         if ((uData->numPEND + arraySize) > uData->maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> maxPendJobs <%d> reached with "
@@ -349,6 +364,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             goto error_cleanup;
         }
 
+        // lsb.params MAX_PEND_JOBS
         if ((totalNumPendJobs + arraySize) > maxPendJobs) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
                                              "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
@@ -358,6 +374,19 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
             goto error_cleanup;
         }
 
+        // lsb.params MAX_PEND_SLOTS
+        if ((pendJobSlots + (arraySize * newjob->shared->jobBill.numProcessors)) > maxPendSlots) {
+            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
+                                             "%s: User <%s> reached lsb.params maxPendSlots <%d> with "
+                                             "total numPENDSlots <%d> plus "
+                                             "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
+                      fname, auth->lsfUserName, maxPendSlots, pendJobSlots, arraySize,
+                      newjob->shared->jobBill.numProcessors);
+            returnErr = LSBE_SLOTS_MAX_PEND;
+            goto error_cleanup;
+        }
+
+        // lsb.users UserGroup MAX_PEND_JOBS
         for (i = 0; i < uData->numGrpPtr; i++) {
             struct uData *ugp = uData->gPtr[i];
             if ((ugp->numPEND + arraySize) > ugp->maxPendJobs) {
@@ -4736,6 +4765,12 @@ inPendJobList (struct jData *job, int listno, time_t requeueTime)
     listInsertEntryBefore((LIST_T *)jDataList[listno],
                           (LIST_ENTRY_T *)jp,
                           (LIST_ENTRY_T *)job);
+    pendJobSlots += job->shared->jobBill.numProcessors;
+    if (logclass & (LC_JLIMIT | LC_SCHED)) {
+        ls_syslog(LOG_DEBUG, "%s: mbd pendJobSlots updated to <%d> with add"
+                             " pend jobId <%d> with plus numProcessors <%d>.",
+                  fname, pendJobSlots, job->jobId, job->shared->jobBill.numProcessors);
+    }
 
 }
 
@@ -4743,6 +4778,16 @@ void
 offJobList (struct jData *jp, int listno)
 {
     listRemoveEntry((LIST_T *)jDataList[listno], (LIST_ENTRY_T *)jp);
+    if (listno == PJL) {
+        pendJobSlots -= jp->shared->jobBill.numProcessors;
+        if (logclass & (LC_JLIMIT | LC_SCHED)) {
+            ls_syslog(LOG_DEBUG, "offJobList: mbd pendJobSlots updated to <%d> with remove"
+                                 " pend jobId <%d> with minus numProcessors <%d>.",
+                      pendJobSlots, jp->jobId, jp->shared->jobBill.numProcessors);
+        }
+
+        pendJobSlots = pendJobSlots < 0 ? 0 : pendJobSlots;
+    }
 
 }
 
