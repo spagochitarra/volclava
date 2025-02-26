@@ -38,7 +38,7 @@ Summary: volclava Distributed Batch Scheduler
 Name: volclava
 Version: 1.0
 # Release: 1.b.%{build_timestamp}
-Release: 1.b.20250106
+Release: 1.b.20250226
 License: GPLv2
 Group: Applications/Productivity
 Vendor: volclava foundation
@@ -436,6 +436,14 @@ rm -rf ${_volclavatop}
 %attr(0755,volclava,volclava) %{_volclavatop}/work/logdir
 
 %changelog
+* Wed Feb 26 2025 Releasing volclava 1.0.2 by Bytedance Ltd. and/or its affiliates
+- lsb.users: support MAX_PEND_JOBS and MAX_PEND_SLOTS;
+- lsb.params: support MAX_PEND_JOBS and MAX_PEND_SLOTS and SUB_TRY_INTERVAL;
+- busers: display MPEND as MAX_PEND_SLOTS defined in lsb.users, display PJOBS
+- as statistic of user pend job, display MPJOBS as MAX_PEND_SLOTS defined in lsb.users;
+- bparams: display MAX_PEND_JOBS and MAX_PEND_SLOTS and SUB_TRY_INTERVAL defined in lsb.params;
+- bsub: add retry when submit job is limited by MAX_PEND_JOBS or MAX_PEND_SLOTS;
+- support resource reserve as per-host;
 * Mon Jan 06 2025 Releasing volclava 1.0.1 by Bytedance Ltd. and/or its affiliates
 - bugfix: revert check for tcl result with function in tcl 8.6;
 - configure: set default limit from cpu to cpu>=0 in lsf.task;
