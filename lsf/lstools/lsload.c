@@ -1,4 +1,6 @@
-/* $Id: lsload.c 397 2007-11-26 19:04:00Z mblack $
+/* 
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: lsload.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -218,7 +220,7 @@ main(int argc, char **argv)
         printf("%s", formatHeader(nlp, longFormat));
     else
 	if (wideFormat)
-	    printf("%s\n", wideformatHeader(nlp, longFormat));
+	    printf("%s\n", wideformatHeader(nlp, TRUE));
         else
             printf("%s\n", formatHeader(nlp, longFormat));
 
@@ -268,8 +270,11 @@ main(int argc, char **argv)
 		putchar('\n');
 	    }
 	    printf("%-23s %6s", hosts[i].hostName, statusbuf);
-        } else
+        } else if (wideFormat) {
+            printf("%-23s %6s", hosts[i].hostName, statusbuf);
+        } else {
 	    printf("%-15.15s %6s", hosts[i].hostName, statusbuf);
+        }
 
 	if (!LS_ISUNAVAIL(hosts[i].status)) {
             int nf;
