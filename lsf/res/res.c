@@ -230,13 +230,6 @@ main(int argc, char **argv)
 	    continue;
 	}
 
-
-	if (strcmp(argv[i], "-PTY_FIX") == 0) {
-	    printf("PTY_FIX");
-	    exit(0);
-	}
-
-
 	if ( (strcmp(argv[i], "-j") == 0) && (argv[i+1] != NULL) ) {
 	    lsbJobStarter = argv[++i];
 	    continue;

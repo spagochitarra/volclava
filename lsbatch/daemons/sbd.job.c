@@ -79,7 +79,6 @@ static int sbdStartupStopJob (struct jobCard *jp, int reasons, int subReasons);
 
 static int chPrePostUser(struct jobCard *jp);
 static void sbdChildCloseChan (int execptChan);
-static int REShasPTYfix(char *);
 static void setJobArrayEnv(char *, int);
 extern int getpwnamRetry;
 struct passwd *my_getpwnam(const char *name, char *caller);
@@ -456,9 +455,6 @@ execJob(struct jobCard *jobCardPtr, int chfd)
             if ((jobSpecsPtr->options & SUB_INTERACTIVE)
                 && (jobSpecsPtr->options & SUB_PTY))  {
                 chuser(batchId);
-                if (!REShasPTYfix(execArgv[0])) {
-                    lsfSetUid(jobSpecsPtr->execUid);
-                }
             }
             lsfExecv(execArgv[0], execArgv);
 
@@ -4376,32 +4372,6 @@ lockHosts (struct jobCard *jp)
         }
     }
     return (0);
-}
-
-
-static int
-REShasPTYfix(char *resPath)
-{
-    FILE *fp;
-    char str[256], cmd[MAXFILENAMELEN + 32];
-
-    sprintf(cmd, "%s -PTY_FIX", resPath);
-
-    if ((fp = popen(cmd, "r")) == NULL)
-        return FALSE;
-
-    if (fscanf(fp, "%s", str) != 1) {
-        pclose(fp);
-        return (FALSE);
-    }
-
-    pclose(fp);
-
-    if (strcmp(str, "PTY_FIX"))
-        return (FALSE);
-
-    return (TRUE);
-
 }
 
 static void
