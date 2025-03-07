@@ -55,6 +55,7 @@ int    msleeptime   = DEF_MSLEEPTIME;
 int    subTryInterval   = DEF_SUB_TRY_INTERVAL;
 int    maxPendJobs   = INFINIT_INT;
 int    maxPendSlots   = INFINIT_INT;
+int    defaultLimitIgnoreUserGroup = FALSE;
 int    sbdSleepTime = DEF_SSLEEPTIME;
 int    preemPeriod  = DEF_PREEM_PERIOD;
 int    pgSuspIdleT  = DEF_PG_SUSP_IT;

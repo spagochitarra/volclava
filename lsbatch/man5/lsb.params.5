@@ -757,4 +757,32 @@ resubmitting a job. This is sent by mbatchd to the client.
 .PP
 .PP
 60 seconds
+.SH DEFAULT_LIMIT_IGNORE_USER_GROUP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_LIMIT_IGNORE_USER_GROUP=y\fR|\fBY\fR|\fBn\fR|\fBN
+.SS Description
+.BR
+.PP
+.PP
+Disable "default" user affect usergroup default configurations in lsb.users.
+.PP
+If DEFAULT_LIMIT_IGNORE_USER_GROUP=\fBy\fR|\fBY\fR, "default" user defined in lsb.users
+would not affect usergroup default configurations such as MXJ, JL/P, MAX_PEND_JOBS
+, MAX_PEND_SLOTS.
+.PP
+otherwise it would be the previous logic or action, that is "default" user would pass through
+it values to the default configurations of usergroups.
+.PP
+If you change the configuration of this parameter, you must
+restart mbatchd.
+.SS Default
+.BR
+.PP
+.PP
+\fBN
 .PP

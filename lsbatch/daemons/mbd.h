@@ -901,6 +901,7 @@ extern int                    msleeptime;
 extern int                    subTryInterval;
 extern int                    maxPendJobs;
 extern int                    maxPendSlots;
+extern int                    defaultLimitIgnoreUserGroup;
 extern int                    numRemoveJobs;
 extern int                    eventPending;
 extern int                    qAttributes;
