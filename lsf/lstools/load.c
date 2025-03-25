@@ -1,4 +1,7 @@
-/* $Id: load.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: load.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -303,12 +306,13 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
         else {
             if (LS_ISBUSYON(host->status, j)) {
                 strcpy(firstFmt, fmt[id].busy);
-                sprintf(fmtField, "%s%s",firstFmt, fmt[id].normFmt);
-                sprintf(tmpfield, fmtField, host->li[j] * fmt[id].scale);
-            }
-            else { 
+            } else {
                 strcpy(firstFmt, fmt[id].ok);
-                sprintf(fmtField, "%s%s", firstFmt, fmt[id].normFmt);
+            }
+            sprintf(fmtField, "%s%s", firstFmt, fmt[id].normFmt);
+            if ((strcmp(fmt[id].name, "ut") == 0) && (host->li[j] * fmt[id].scale) > 100) {
+                sprintf(tmpfield, fmtField, 100);
+            } else {
                 sprintf(tmpfield, fmtField, host->li[j] * fmt[id].scale);
             }
             sp = stripSpaces(tmpfield);
