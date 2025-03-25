@@ -58,6 +58,7 @@ static double        acumulateValue(double, double);
 static void          accumulateRU(struct jData *, struct statusReq *);
 static int           checkJobParams(struct jData *, struct submitReq *,
                                     struct submitMbdReply *, struct lsfAuth *);
+static int           checkJobPendLimit(struct jData *, struct lsfAuth *, int);
 static struct submitReq* saveOldParameters(struct jData *);
 static void              freeExecParams(struct jData *);
 static int mergeSubReq (struct submitReq *to, struct submitReq *old,
@@ -162,16 +163,12 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     char jobIdStr[20];
     struct lenData jf;
     struct hData *hData;
-    struct uData *uData;
     struct hostInfo *hinfo;
     char hostType[MAXHOSTNAMELEN];
 
     struct idxList *idxList;
     int    maxJLimit = 0;
-    int    arraySize = 0;
-    int    totalNumPendJobs = 0;
-    int    i;
-    LIST_T * list = NULL;
+    int    arraySize = 1;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -277,96 +274,13 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     newjob->chkpntPeriod = newjob->shared->jobBill.chkpntPeriod;
 
 
-    logJobInfo(subReq, newjob, &jf);
-    FREEUP (jf.data);
-
     newjob->schedHost = safeSave (hostType);
-
-    uData = getUserData(auth->lsfUserName);
-    if (uData == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                         "%s: User <%s> is not find by LSF"), /* catgets 6501 */
-                  fname, auth->lsfUserName);
-        returnErr = LSBE_NO_USER;
-        goto error_cleanup;
-    }
-    initUserGroup(uData);
-
-//    totalNumPendJobs = staticNumPendJobs();
-    list = (LIST_T *)jDataList[PJL];
-    totalNumPendJobs = list->numEnts;
-    ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                     "%s: debug jDataList[PJL] numEnts <%d>."), /* catgets 6501 */
-              fname, totalNumPendJobs);
 
     if ((newjob->shared->jobBill.options & SUB_RESTART) ||
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
-
-        // lsb.users MAX_PEND_SLOTS
-        if ((uData->numPEND + newjob->shared->jobBill.numProcessors) > uData->maxPendSlots) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> maxPendSlots <%d> reached with "
-                                             "user numPEND <%d> plus numProcessors <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendSlots, uData->numPEND,
-                      newjob->shared->jobBill.numProcessors);
-            returnErr = LSBE_SLOTS_MAX_PEND;
-        }
-
-        // lsb.users MAX_PEND_JOBS
-        if ((uData->numPENDJobs + 1) > uData->maxPendJobs) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "user numPENDJobs <%d> plus 1."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPENDJobs);
-            returnErr = LSBE_JOB_MAX_PEND;
-        }
-
-        // lsb.params MAX_PEND_JOBS
-        if ((totalNumPendJobs + 1) > maxPendJobs) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
-                                             "total numPEND <%d> plus 1."), /* catgets 6501 */
-                      fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs);
-            returnErr = LSBE_JOB_MAX_PEND;
-        }
-
-        // lsb.params MAX_PEND_SLOTS
-        if ((pendJobSlots + newjob->shared->jobBill.numProcessors) > maxPendSlots) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> reached lsb.params maxPendSlots <%d> with "
-                                             "total numPENDSlots <%d> plus numProcessors <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, maxPendSlots, pendJobSlots,
-                      newjob->shared->jobBill.numProcessors);
-            returnErr = LSBE_SLOTS_MAX_PEND;
-        }
-
-        // lsb.users UserGroup
-        for (i = 0; i < uData->numGrpPtr; i++) {
-            struct uData *ugp = uData->gPtr[i];
-
-            // lsb.users UserGroup MAX_PEND_SLOTS
-            if ((ugp->numPEND + newjob->shared->jobBill.numProcessors) > ugp->maxPendSlots) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                                 "%s: User <%s> in userGroup <%s> reached maxPendSlots <%d> with "
-                                                 " numPEND <%d> plus numProcessors <%d>."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND,
-                          newjob->shared->jobBill.numProcessors);
-                returnErr = LSBE_SLOTS_MAX_PEND;
-                break;
-            }
-
-            // lsb.users UserGroup MAX_PEND_JOBS
-            if ((ugp->numPENDJobs + 1) > ugp->maxPendJobs) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
-                                                 " numPENDJobs <%d> plus 1."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPENDJobs);
-                returnErr = LSBE_JOB_MAX_PEND;
-                break;
-            }
-        }
-
+        arraySize = 1;
+        returnErr = checkJobPendLimit(newjob, auth, arraySize);
         if (returnErr == LSBE_NO_ERROR) {
             handleNewJob (newjob, JOB_NEW, LOG_IT);
         }
@@ -375,83 +289,16 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         }
     }
     else {
-        arraySize += (idxList->end - idxList->start)/idxList->step + 1;
-
-        // lsb.users MAX_PEND_SLOTS
-        if ((uData->numPEND + (arraySize * newjob->shared->jobBill.numProcessors)) > uData->maxPendSlots) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> maxPendSlots <%d> reached with "
-                                             "user numPEND <%d> plus job "
-                                             "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendSlots, uData->numPEND, arraySize,
-                      newjob->shared->jobBill.numProcessors);
-            returnErr = LSBE_SLOTS_MAX_PEND;
+        arraySize = (idxList->end - idxList->start)/idxList->step + 1;
+        returnErr = checkJobPendLimit(newjob, auth, arraySize);
+        if (returnErr == LSBE_NO_ERROR) {
+            handleNewJobArray(newjob, idxList, maxJLimit);
+            freeIdxList(idxList);
+        }
+        else {
             goto error_cleanup;
         }
 
-        // lsb.users MAX_PEND_JOBS
-        if ((uData->numPENDJobs + arraySize) > uData->maxPendJobs) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> maxPendJobs <%d> reached with "
-                                             "user numPENDJobs <%d> plus job "
-                                             "arraySize <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, uData->maxPendJobs, uData->numPENDJobs, arraySize);
-            returnErr = LSBE_JOB_MAX_PEND;
-            goto error_cleanup;
-        }
-
-        // lsb.params MAX_PEND_JOBS
-        if ((totalNumPendJobs + arraySize) > maxPendJobs) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
-                                             "total numPEND <%d> plus arraySize <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, arraySize);
-            returnErr = LSBE_JOB_MAX_PEND;
-            goto error_cleanup;
-        }
-
-        // lsb.params MAX_PEND_SLOTS
-        if ((pendJobSlots + (arraySize * newjob->shared->jobBill.numProcessors)) > maxPendSlots) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                             "%s: User <%s> reached lsb.params maxPendSlots <%d> with "
-                                             "total numPENDSlots <%d> plus job"
-                                             "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
-                      fname, auth->lsfUserName, maxPendSlots, pendJobSlots, arraySize,
-                      newjob->shared->jobBill.numProcessors);
-            returnErr = LSBE_SLOTS_MAX_PEND;
-            goto error_cleanup;
-        }
-
-        // lsb.users UserGroup
-        for (i = 0; i < uData->numGrpPtr; i++) {
-            struct uData *ugp = uData->gPtr[i];
-
-            // lsb.users UserGroup MAX_PEND_SLOTS
-            if ((ugp->numPEND + (arraySize * newjob->shared->jobBill.numProcessors)) > ugp->maxPendSlots) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
-                                                 " numPEND <%d> plus job "
-                                                 "arraySize <%d> * numProcessors <%d>."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND, arraySize,
-                          newjob->shared->jobBill.numProcessors);
-                returnErr = LSBE_SLOTS_MAX_PEND;
-                goto error_cleanup;
-            }
-
-            // lsb.users UserGroup MAX_PEND_JOBS
-            if ((ugp->numPENDJobs + arraySize) > ugp->maxPendJobs) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6501,
-                                                 "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
-                                                 " numPENDJobs <%d> plus job "
-                                                 "arraySize <%d>."), /* catgets 6501 */
-                          fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs, ugp->numPENDJobs, arraySize);
-                returnErr = LSBE_JOB_MAX_PEND;
-                goto error_cleanup;
-            }
-        }
-
-        handleNewJobArray(newjob, idxList, maxJLimit);
-        freeIdxList(idxList);
     }
     Reply->jobId = newjob->jobId;
     *jobData = newjob;
@@ -460,13 +307,16 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         ls_syslog(LOG_DEBUG1, "%s: New job <%s> submitted to queue <%s>",
                   fname, lsb_jobid2str(newjob->jobId), newjob->qPtr->queue);
 
+    logJobInfo(subReq, newjob, &jf);
+    FREEUP (jf.data);
+
     return(LSBE_NO_ERROR);
 
 error_cleanup:
     FREEUP (jf.data);
     FREEUP(Reply->badJobName);
+    freeIdxList(idxList);
     Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
-//    Reply->subTryInterval = subTryInterval;
     freeJData(newjob);
     return(returnErr);
 }
@@ -6238,6 +6088,102 @@ saveOldParameters (struct jData *jpbw)
         (sizeof (struct submitReq), "saveJParameters");
     copyJobBill (&jpbw->shared->jobBill, newSub, FALSE);
     return (newSub);
+}
+
+static int
+checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
+
+    static char fname[] = "checkJobPendLimit";
+    struct uData *userData;
+    int    totalNumPendJobs = 0;
+    LIST_T *list = NULL;
+    int    i;
+
+    userData = getUserData(auth->lsfUserName);
+    if (userData == NULL) {
+        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6511,
+                                         "%s: User <%s> is not found by LSF"), /* catgets 6511 */
+                  fname, auth->lsfUserName);
+        return (LSBE_NO_USER);
+    }
+    initUserGroup(userData);
+
+    list = (LIST_T *)jDataList[PJL];
+    totalNumPendJobs = list->numEnts;
+    if(logclass & LC_JLIMIT) {
+        ls_syslog(LOG_DEBUG, "%s: debug jDataList[PJL] numEnts <%d>.", fname, totalNumPendJobs);
+    }
+
+    // lsb.users MAX_PEND_SLOTS
+    if ((userData->numPEND + (jobArraySize * job->shared->jobBill.numProcessors)) > userData->maxPendSlots) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> maxPendSlots <%d> reached with user numPEND <%d> plus job "
+                                 "jobArraySize <%d> * numProcessors <%d>.",
+                                 fname, auth->lsfUserName, userData->maxPendSlots, userData->numPEND, jobArraySize,
+                                 job->shared->jobBill.numProcessors);
+        }
+        return (LSBE_SLOTS_MAX_PEND);
+    }
+
+    // lsb.users MAX_PEND_JOBS
+    if ((userData->numPENDJobs + jobArraySize) > userData->maxPendJobs) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> maxPendJobs <%d> reached with user numPENDJobs <%d> plus job"
+                                 "jobArraySize <%d>.", fname, auth->lsfUserName, userData->maxPendJobs,
+                                 userData->numPENDJobs, jobArraySize);
+        }
+        return (LSBE_JOB_MAX_PEND);
+    }
+
+    // lsb.params MAX_PEND_JOBS
+    if ((totalNumPendJobs + jobArraySize) > maxPendJobs) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
+                                 "total numPEND <%d> plus jobArraySize <%d>.",
+                                 fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, jobArraySize);
+        }
+        return (LSBE_JOB_MAX_PEND);
+    }
+
+    // lsb.params MAX_PEND_SLOTS
+    if ((pendJobSlots + (jobArraySize * job->shared->jobBill.numProcessors)) > maxPendSlots) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> reached lsb.params maxPendSlots <%d> with total "
+                                 "numPENDSlots <%d> plus job jobArraySize <%d> * numProcessors <%d>.",
+                                 fname, auth->lsfUserName, maxPendSlots, pendJobSlots, jobArraySize,
+                                 job->shared->jobBill.numProcessors);
+        }
+        return (LSBE_SLOTS_MAX_PEND);
+    }
+
+    // lsb.users UserGroup
+    for (i = 0; i < userData->numGrpPtr; i++) {
+        struct uData *ugp = userData->gPtr[i];
+
+        // lsb.users UserGroup MAX_PEND_SLOTS
+        if ((ugp->numPEND + (jobArraySize * job->shared->jobBill.numProcessors)) > ugp->maxPendSlots) {
+            if(logclass & LC_JLIMIT) {
+                ls_syslog(LOG_DEBUG, "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                     "numPEND <%d> plus job jobArraySize <%d> * numProcessors <%d>.",
+                                     fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND,
+                                     jobArraySize, job->shared->jobBill.numProcessors);
+            }
+            return (LSBE_SLOTS_MAX_PEND);
+        }
+
+        // lsb.users UserGroup MAX_PEND_JOBS
+        if ((ugp->numPENDJobs + jobArraySize) > ugp->maxPendJobs) {
+            if(logclass & LC_JLIMIT) {
+                ls_syslog(LOG_DEBUG, "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                     "numPENDJobs <%d> plus job jobArraySize <%d>.",
+                                     fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs,
+                                     ugp->numPENDJobs, jobArraySize);
+            }
+            return (LSBE_JOB_MAX_PEND);
+        }
+    }
+
+    return (LSBE_NO_ERROR);
 }
 
 static int
