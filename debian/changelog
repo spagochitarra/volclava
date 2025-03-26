@@ -1,3 +1,15 @@
+volclava (1.0-1.b.20250226) UNRELEASED; urgency=medium
+
+  * lsb.users: support MAX_PEND_JOBS and MAX_PEND_SLOTS;
+  * lsb.params: support MAX_PEND_JOBS and MAX_PEND_SLOTS and SUB_TRY_INTERVAL;
+  * busers: display MPEND as MAX_PEND_SLOTS defined in lsb.users, display PJOBS
+    as statistic of user pend job, display MPJOBS as MAX_PEND_SLOTS defined in lsb.users;
+  * bparams: display MAX_PEND_JOBS and MAX_PEND_SLOTS and SUB_TRY_INTERVAL defined in lsb.params;
+  * bsub: add retry when submit job is limited by MAX_PEND_JOBS or MAX_PEND_SLOTS;
+  * support resource reserve as per-host
+
+ -- Mingze Li <limingze.jiayou@bytedance.com>  Wed, 26 Feb 2025 17:17:18 +0800
+
 volclava (1.0-1.b.20250106) UNRELEASED; urgency=medium
 
   * bugfix: revert check for tcl result with function in tcl 8.6;

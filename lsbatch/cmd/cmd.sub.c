@@ -79,7 +79,15 @@ do_sub (int argc, char **argv, int option)
     static char fname[] = "do_sub";
     struct submit  req;
     struct submitReply  reply;
+    static int nRetries = 6;
+    static int countTries = 1;
+    static int subTryInterval = DEF_SUB_TRY_INTERVAL;
+    static char *envLSBNTries;
     LS_LONG_INT jobId = -1;
+
+    if ((envLSBNTries = getenv("LSB_NTRIES")) != NULL) {
+        nRetries = atoi64_(envLSBNTries);
+    }
 
     if (lsb_init(argv[0]) < 0) {
 	sub_perror("lsb_init");
@@ -103,14 +111,34 @@ do_sub (int argc, char **argv, int option)
     if (req.options & SUB_PACK) {
         do_pack_sub(option, argv, &req);
     } else {
-        TIMEIT(0, (jobId = lsb_submit(&req, &reply)), "lsb_submit");
-        if (jobId < 0) {
-            prtErrMsg (&req, &reply);
-            fprintf(stderr,  ". %s.\n",
-                    (_i18n_msg_get(ls_catd,NL_SETN,1551, "Job not submitted")));
-            return(-1);
-        }
+        do {
+            TIMEIT(0, (jobId = lsb_submit(&req, &reply)), "lsb_submit");
 
+            if (jobId > 0) {
+                break;
+            }
+
+            subTryInterval = reply.subTryInterval;
+
+            prtErrMsg (&req, &reply);
+
+            if (lsberrno != LSBE_JOB_MAX_PEND && lsberrno != LSBE_SLOTS_MAX_PEND) {
+                // currently only retry on LSBE_JOB_MAX_PEND or LSBE_SLOTS_MAX_PEND
+                countTries = nRetries;
+            }
+
+            if ( countTries >= nRetries) {
+                fprintf(stderr,  ". %s.\n",
+                        (_i18n_msg_get(ls_catd,NL_SETN,1561, "Job not submitted")));
+                return(-1);
+            }
+
+            fprintf(stderr,
+                    (_i18n_msg_get(ls_catd,NL_SETN,1562, ". Retrying in %d seconds...\n")), subTryInterval);
+
+            countTries++;
+            sleep(subTryInterval);
+        } while (jobId < 0 && countTries <= nRetries);
     }
 
     if (req.nxf)
@@ -848,6 +876,7 @@ CopyCommand(char **from, int len)
 void
 prtErrMsg (struct submit *req, struct submitReply *reply)
 {
+    static char tmpBuf[128];
     static char rNames [10][12] = {
                               "CPULIMIT",
                               "FILELIMIT",
@@ -900,6 +929,11 @@ prtErrMsg (struct submit *req, struct submitReply *reply)
 
     case LSBE_BAD_HOST_SPEC:
         sub_perror (req->hostSpec);
+        break;
+    case LSBE_JOB_MAX_PEND:
+    case LSBE_SLOTS_MAX_PEND:
+        sprintf(tmpBuf, "User <%s>", getenv("USER"));
+        sub_perror (tmpBuf);
         break;
     default:
 	sub_perror(NULL);

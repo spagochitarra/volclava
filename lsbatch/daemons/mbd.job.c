@@ -58,6 +58,7 @@ static double        acumulateValue(double, double);
 static void          accumulateRU(struct jData *, struct statusReq *);
 static int           checkJobParams(struct jData *, struct submitReq *,
                                     struct submitMbdReply *, struct lsfAuth *);
+static int           checkJobPendLimit(struct jData *, struct lsfAuth *, int);
 static struct submitReq* saveOldParameters(struct jData *);
 static void              freeExecParams(struct jData *);
 static int mergeSubReq (struct submitReq *to, struct submitReq *old,
@@ -147,6 +148,8 @@ static int   switchAJob(struct jobSwitchReq *,
                         struct lsfAuth      *,
                         struct qData        *);
 static int   moveAJob (struct jobMoveReq *, int log, struct lsfAuth *);
+static int staticNumPendJobs (void);
+static void initUserGroup (struct uData *);
 
 int
 newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
@@ -165,6 +168,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
 
     struct idxList *idxList;
     int    maxJLimit = 0;
+    int    arraySize = 1;
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -270,29 +274,31 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     newjob->chkpntPeriod = newjob->shared->jobBill.chkpntPeriod;
 
 
-    logJobInfo(subReq, newjob, &jf);
-    FREEUP (jf.data);
-
     newjob->schedHost = safeSave (hostType);
-
 
     if ((newjob->shared->jobBill.options & SUB_RESTART) ||
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
+        arraySize = 1;
+        returnErr = checkJobPendLimit(newjob, auth, arraySize);
         if (returnErr == LSBE_NO_ERROR) {
             handleNewJob (newjob, JOB_NEW, LOG_IT);
         }
         else {
-            FREEUP (jf.data);
-            FREEUP(Reply->badJobName);
-            Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
-            freeJData(newjob);
-            return(returnErr);
+            goto error_cleanup;
         }
     }
     else {
-        handleNewJobArray(newjob, idxList, maxJLimit);
-        freeIdxList(idxList);
+        arraySize = (idxList->end - idxList->start)/idxList->step + 1;
+        returnErr = checkJobPendLimit(newjob, auth, arraySize);
+        if (returnErr == LSBE_NO_ERROR) {
+            handleNewJobArray(newjob, idxList, maxJLimit);
+            freeIdxList(idxList);
+        }
+        else {
+            goto error_cleanup;
+        }
+
     }
     Reply->jobId = newjob->jobId;
     *jobData = newjob;
@@ -301,8 +307,18 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         ls_syslog(LOG_DEBUG1, "%s: New job <%s> submitted to queue <%s>",
                   fname, lsb_jobid2str(newjob->jobId), newjob->qPtr->queue);
 
+    logJobInfo(subReq, newjob, &jf);
+    FREEUP (jf.data);
+
     return(LSBE_NO_ERROR);
 
+error_cleanup:
+    FREEUP (jf.data);
+    FREEUP(Reply->badJobName);
+    freeIdxList(idxList);
+    Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
+    freeJData(newjob);
+    return(returnErr);
 }
 
 struct hData *
@@ -4650,6 +4666,12 @@ inPendJobList (struct jData *job, int listno, time_t requeueTime)
     listInsertEntryBefore((LIST_T *)jDataList[listno],
                           (LIST_ENTRY_T *)jp,
                           (LIST_ENTRY_T *)job);
+    pendJobSlots += job->shared->jobBill.numProcessors;
+    if (logclass & (LC_JLIMIT | LC_SCHED)) {
+        ls_syslog(LOG_DEBUG, "%s: mbd pendJobSlots updated to <%d> with add"
+                             " pend jobId <%d> with plus numProcessors <%d>.",
+                  fname, pendJobSlots, job->jobId, job->shared->jobBill.numProcessors);
+    }
 
 }
 
@@ -4657,6 +4679,16 @@ void
 offJobList (struct jData *jp, int listno)
 {
     listRemoveEntry((LIST_T *)jDataList[listno], (LIST_ENTRY_T *)jp);
+    if (listno == PJL) {
+        pendJobSlots -= jp->shared->jobBill.numProcessors;
+        if (logclass & (LC_JLIMIT | LC_SCHED)) {
+            ls_syslog(LOG_DEBUG, "offJobList: mbd pendJobSlots updated to <%d> with remove"
+                                 " pend jobId <%d> with minus numProcessors <%d>.",
+                      pendJobSlots, jp->jobId, jp->shared->jobBill.numProcessors);
+        }
+
+        pendJobSlots = pendJobSlots < 0 ? 0 : pendJobSlots;
+    }
 
 }
 
@@ -6059,6 +6091,102 @@ saveOldParameters (struct jData *jpbw)
 }
 
 static int
+checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
+
+    static char fname[] = "checkJobPendLimit";
+    struct uData *userData;
+    int    totalNumPendJobs = 0;
+    LIST_T *list = NULL;
+    int    i;
+
+    userData = getUserData(auth->lsfUserName);
+    if (userData == NULL) {
+        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 6511,
+                                         "%s: User <%s> is not found by LSF"), /* catgets 6511 */
+                  fname, auth->lsfUserName);
+        return (LSBE_NO_USER);
+    }
+    initUserGroup(userData);
+
+    list = (LIST_T *)jDataList[PJL];
+    totalNumPendJobs = list->numEnts;
+    if(logclass & LC_JLIMIT) {
+        ls_syslog(LOG_DEBUG, "%s: debug jDataList[PJL] numEnts <%d>.", fname, totalNumPendJobs);
+    }
+
+    // lsb.users MAX_PEND_SLOTS
+    if ((userData->numPEND + (jobArraySize * job->shared->jobBill.numProcessors)) > userData->maxPendSlots) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> maxPendSlots <%d> reached with user numPEND <%d> plus job "
+                                 "jobArraySize <%d> * numProcessors <%d>.",
+                                 fname, auth->lsfUserName, userData->maxPendSlots, userData->numPEND, jobArraySize,
+                                 job->shared->jobBill.numProcessors);
+        }
+        return (LSBE_SLOTS_MAX_PEND);
+    }
+
+    // lsb.users MAX_PEND_JOBS
+    if ((userData->numPENDJobs + jobArraySize) > userData->maxPendJobs) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> maxPendJobs <%d> reached with user numPENDJobs <%d> plus job"
+                                 "jobArraySize <%d>.", fname, auth->lsfUserName, userData->maxPendJobs,
+                                 userData->numPENDJobs, jobArraySize);
+        }
+        return (LSBE_JOB_MAX_PEND);
+    }
+
+    // lsb.params MAX_PEND_JOBS
+    if ((totalNumPendJobs + jobArraySize) > maxPendJobs) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> reached lsb.params maxPendJobs <%d> with "
+                                 "total numPEND <%d> plus jobArraySize <%d>.",
+                                 fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, jobArraySize);
+        }
+        return (LSBE_JOB_MAX_PEND);
+    }
+
+    // lsb.params MAX_PEND_SLOTS
+    if ((pendJobSlots + (jobArraySize * job->shared->jobBill.numProcessors)) > maxPendSlots) {
+        if(logclass & LC_JLIMIT) {
+            ls_syslog(LOG_DEBUG, "%s: User <%s> reached lsb.params maxPendSlots <%d> with total "
+                                 "numPENDSlots <%d> plus job jobArraySize <%d> * numProcessors <%d>.",
+                                 fname, auth->lsfUserName, maxPendSlots, pendJobSlots, jobArraySize,
+                                 job->shared->jobBill.numProcessors);
+        }
+        return (LSBE_SLOTS_MAX_PEND);
+    }
+
+    // lsb.users UserGroup
+    for (i = 0; i < userData->numGrpPtr; i++) {
+        struct uData *ugp = userData->gPtr[i];
+
+        // lsb.users UserGroup MAX_PEND_SLOTS
+        if ((ugp->numPEND + (jobArraySize * job->shared->jobBill.numProcessors)) > ugp->maxPendSlots) {
+            if(logclass & LC_JLIMIT) {
+                ls_syslog(LOG_DEBUG, "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                     "numPEND <%d> plus job jobArraySize <%d> * numProcessors <%d>.",
+                                     fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND,
+                                     jobArraySize, job->shared->jobBill.numProcessors);
+            }
+            return (LSBE_SLOTS_MAX_PEND);
+        }
+
+        // lsb.users UserGroup MAX_PEND_JOBS
+        if ((ugp->numPENDJobs + jobArraySize) > ugp->maxPendJobs) {
+            if(logclass & LC_JLIMIT) {
+                ls_syslog(LOG_DEBUG, "%s: User <%s> in userGroup <%s> reached maxPendJobs <%d> with "
+                                     "numPENDJobs <%d> plus job jobArraySize <%d>.",
+                                     fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs,
+                                     ugp->numPENDJobs, jobArraySize);
+            }
+            return (LSBE_JOB_MAX_PEND);
+        }
+    }
+
+    return (LSBE_NO_ERROR);
+}
+
+static int
 checkJobParams (struct jData *job, struct submitReq *subReq,
                 struct submitMbdReply *Reply, struct lsfAuth *auth)
 {
@@ -6078,6 +6206,8 @@ checkJobParams (struct jData *job, struct submitReq *subReq,
         Reply = &replyTmp;
         Reply->badJobName = NULL;
     }
+
+    Reply->subTryInterval = subTryInterval;
 
     if (strcmp(subReq->projectName, "") == 0) {
         FREEUP (subReq->projectName);
@@ -8943,3 +9073,52 @@ static int checkSubHost(struct jData *job)
     return LSBE_NO_ERROR;
 }
 
+static int staticNumPendJobs (void)
+{
+    int numPend = 0;
+    struct qData *qp;
+
+    for (qp = qDataList->forw; qp != qDataList; qp = qp->forw) {
+        numPend += qp->numPEND;
+    }
+
+    return numPend;
+}
+
+static void initUserGroup (struct uData *uData)
+{
+    // reference from updUserData
+    int numNew=0;
+    int k=0;
+    struct uData **grpPtr = NULL;
+    struct uData *ugp;
+
+    if (!(uData->flags & USER_INIT)) {
+
+        if (grpPtr == NULL && numofugroups > 0) {
+            grpPtr = (struct uData **) my_calloc(numofugroups,
+                                                 sizeof(struct uData *), "updUserList");
+        }
+
+        for (k = 0; k < numofugroups; k++) {
+            if (!gMember(uData->user, usergroups[k]))
+                continue;
+            if ((ugp = getUserData(usergroups[k]->group)) == NULL)
+                continue;
+            ugp->gData = usergroups[k];
+            grpPtr[numNew++] = ugp;
+        }
+        FREEUP(uData->gPtr);
+        if (numNew > 0) {
+            uData->gPtr = (struct uData **) my_calloc(numNew,
+                                                      sizeof(struct uData *), "updUserList");
+        }
+
+        for (k = 0; k < numNew; k++) {
+            uData->gPtr[k] = grpPtr[k];
+        }
+        uData->numGrpPtr = numNew;
+        uData->flags |= USER_INIT;
+    }
+
+}

@@ -559,6 +559,8 @@ defaultUser:
             addUserData ("default",
                          INFINIT_INT,
                          INFINIT_FLOAT,
+                         INFINIT_INT,
+                         INFINIT_INT,
                          "readUserConf",
                          FALSE,
                          TRUE);
@@ -1862,6 +1864,9 @@ setParams(struct paramConf *paramConf)
     setString(lsfDefaultProject, params->defaultProject);
 
     setValue(msleeptime, params->mbatchdInterval);
+    setValue(subTryInterval, params->subTryInterval);
+    setValue(maxPendJobs, params->maxPendJobs);
+    setValue(maxPendSlots, params->maxPendSlots);
     setValue(sbdSleepTime, params->sbatchdInterval);
     setValue(accept_intvl, params->jobAcceptInterval);
     setValue(max_retry, params->maxDispRetries);
@@ -1916,7 +1921,7 @@ addUData (struct userConf *userConf)
     removeFlags(&uDataList, USER_UPDATE, UDATA);
     for (i = 0; i < userConf->numUsers; i++) {
         uPtr = &(userConf->users[i]);
-        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit,
+        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit, uPtr->maxPendJobs, uPtr->maxPendSlots,
                     fname, TRUE, TRUE);
         if (strcmp ("default", uPtr->user) == 0)
             defUser = TRUE;
@@ -2091,6 +2096,9 @@ setDefaultParams(void)
     FREEUP (pjobSpoolDir);
 
     msleeptime = DEF_MSLEEPTIME;
+    subTryInterval = DEF_SUB_TRY_INTERVAL;
+    maxPendJobs = INFINIT_INT;
+    maxPendSlots = INFINIT_INT;
     sbdSleepTime = DEF_SSLEEPTIME;
     accept_intvl = DEF_ACCEPT_INTVL;
     max_retry = DEF_MAX_RETRY;

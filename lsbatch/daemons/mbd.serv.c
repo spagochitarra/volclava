@@ -1974,6 +1974,7 @@ initSubmit(int *first, struct submitReq *subReq,
 
     submitReply->jobId = 0;
     submitReply->queue = "";
+    submitReply->subTryInterval = DEF_SUB_TRY_INTERVAL;
 
     strcpy (submitReply->badJobName, "");
 

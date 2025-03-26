@@ -885,7 +885,10 @@ updUserData1 (struct jData *jData, struct uData *up, int numJobs,
 {
     static char       fname[] = "updUserData1";
     bool_t            newJob;
+    int               countPENDJobs;
 
+    countPENDJobs = (numPEND / jData->shared->jobBill.maxNumProcessors);
+    addValue (&up->numPENDJobs, countPENDJobs, jData, fname, "numPENDJobs");
 
 
     addValue (&up->numJobs, numJobs, jData, fname, "numJobs");
@@ -894,6 +897,7 @@ updUserData1 (struct jData *jData, struct uData *up, int numJobs,
     addValue (&up->numSSUSP, numSSUSP, jData, fname, "numSSUSP");
     addValue (&up->numUSUSP, numUSUSP, jData, fname, "numUSUSP");
     addValue (&up->numRESERVE, numRESERVE, jData, fname, "numRESERVE");
+
 
     if (logclass & LC_JLIMIT)
         ls_syslog(LOG_DEBUG3, "\
@@ -1009,7 +1013,7 @@ getUserData (char *user)
     userEnt = h_getEnt_(&uDataList, "default");
     if (userEnt != NULL) {
         defUser = (struct uData *) userEnt->hData;
-        uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit,
+        uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit, defUser->maxPendJobs, defUser->maxPendSlots,
                             "mbatchd/getUserData", FALSE, FALSE);
         if (uData != NULL)
             return uData;
@@ -1020,7 +1024,7 @@ getUserData (char *user)
     }
 
 
-    uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT,
+    uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT, INFINIT_INT, INFINIT_INT,
                         "mbatchd/getUserData", FALSE, FALSE);
     if (uData != NULL)
         return uData;
@@ -1063,9 +1067,12 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             }
 
             uInfo->maxJobs = uData->maxJobs;
+            uInfo->maxPendJobs = uData->maxPendJobs;
+            uInfo->maxPendSlots = uData->maxPendSlots;
             uInfo->numStartJobs = uData->numJobs - uData->numPEND;
             uInfo->numJobs = uData->numJobs;
             uInfo->numPEND = uData->numPEND;
+            uInfo->numPENDJobs = uData->numPENDJobs;
             uInfo->numRUN  = uData->numRUN;
             uInfo->numSSUSP = uData->numSSUSP;
             uInfo->numUSUSP = uData->numUSUSP;
@@ -1104,8 +1111,12 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
         if (found) {
             uInfo->maxJobs = INFINIT_INT;
             uInfo->procJobLimit = INFINIT_FLOAT;
+            uInfo->maxPendJobs = INFINIT_INT;
+            uInfo->maxPendSlots = INFINIT_INT;
         } else {
             uInfo->maxJobs = uData->maxJobs;
+            uInfo->maxPendJobs = uData->maxPendJobs;
+            uInfo->maxPendSlots = uData->maxPendSlots;
             if (uData->pJobLimit >= INFINIT_FLOAT)
                 uInfo->procJobLimit = INFINIT_FLOAT;
             else
@@ -1115,6 +1126,7 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             - uData->numPEND - uData->numRESERVE;
         uInfo->numJobs = uData->numJobs;
         uInfo->numPEND = uData->numPEND;
+        uInfo->numPENDJobs = uData->numPENDJobs;
         uInfo->numRUN  = uData->numRUN;
         uInfo->numSSUSP = uData->numSSUSP;
         uInfo->numUSUSP = uData->numUSUSP;
@@ -1127,7 +1139,7 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
 }
 
 struct uData *
-addUserData(char *username, int maxjobs, float pJobLimit,
+addUserData(char *username, int maxjobs, float pJobLimit, int maxPendJobs, int maxPendSlots,
             char *filename, int override, int config)
 {
     static char fname[] = "addUserData";
@@ -1167,6 +1179,8 @@ addUserData(char *username, int maxjobs, float pJobLimit,
     uData->user = safeSave(username);
     uData->pJobLimit = pJobLimit;
     uData->maxJobs   = maxjobs;
+    uData->maxPendJobs    = maxPendJobs;
+    uData->maxPendSlots   = maxPendSlots;
 
     uData->uDataIndex = UDATA_TABLE_NUM_ELEMENTS(uDataPtrTb);
 
@@ -1249,6 +1263,9 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
     else
         reply->defaultHostSpec = "";
     reply->mbatchdInterval = msleeptime;
+    reply->subTryInterval = subTryInterval;
+    reply->maxPendJobs = maxPendJobs;
+    reply->maxPendSlots = maxPendSlots;
     reply->sbatchdInterval = sbdSleepTime;
     reply->jobAcceptInterval = accept_intvl;
 
@@ -1497,6 +1514,7 @@ initUData(struct uData *uPtr)
     uPtr->flags = 0;
     uPtr->numJobs   = 0;
     uPtr->numPEND   = 0;
+    uPtr->numPENDJobs  = 0;
     uPtr->numRUN    = 0;
     uPtr->numSSUSP  = 0;
     uPtr->numUSUSP  = 0;

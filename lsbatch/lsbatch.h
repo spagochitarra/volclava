@@ -451,8 +451,9 @@
 #define    LSBE_MOD_ERRFILE         129
 #define    LSBE_LOCKED_MASTER       130
 #define    LSBE_DEP_ARRAY_SIZE      131
-#define    LSBE_NUM_ERR             131
-
+#define    LSBE_JOB_MAX_PEND        132
+#define    LSBE_SLOTS_MAX_PEND      133
+#define    LSBE_NUM_ERR             133
 
 
 #define PREPARE_FOR_OP          1024
@@ -564,6 +565,7 @@ struct submitReply {
      LS_LONG_INT  badJobId;
      char    *badJobName;
      int     badReqIndx;
+     int     subTryInterval;
 };
 
 struct submig {
@@ -694,9 +696,12 @@ struct userInfoEnt {
     char   *user;
     float  procJobLimit;
     int    maxJobs;
+    int    maxPendJobs;
+    int    maxPendSlots;
     int    numStartJobs;
     int    numJobs;
-    int    numPEND;
+    int    numPEND;// pend slots
+    int    numPENDJobs;
     int    numRUN;
     int    numSSUSP;
     int    numUSUSP;
@@ -798,6 +803,7 @@ struct hostInfoEnt {
 #define DEF_MAX_JOBID   999999
 #define MAX_JOBID_LOW   999999
 #define MAX_JOBID_HIGH 9999999
+#define DEF_SUB_TRY_INTERVAL 60
 
 struct parameterInfo {
     char *defaultQueues;
@@ -836,6 +842,9 @@ struct parameterInfo {
     int  acctArchiveInDays;
     int  acctArchiveInSize;
     int  resourcePerTask;
+    int  subTryInterval;
+    int  maxPendJobs;
+    int  maxPendSlots;
 };
 
 

@@ -408,8 +408,11 @@ struct uData {
     struct gData *gData;
     int    maxJobs;
     float  pJobLimit;
+    int    maxPendJobs;
+    int    maxPendSlots;
     struct hTab *hAcct;
-    int    numPEND;
+    int    numPEND;// pend slots
+    int    numPENDJobs;
     int    numRUN;
     int    numSSUSP;
     int    numUSUSP;
@@ -848,6 +851,7 @@ typedef enum profCounterType {
 extern LIST_T *hostList;
 extern struct hTab            hostTab;
 extern struct jData           *jDataList[];
+extern int                    pendJobSlots;
 extern struct migJob          *migJobList;
 extern struct qData           *qDataList;
 extern UDATA_TABLE_T          *uDataPtrTb;
@@ -894,6 +898,9 @@ extern int                    maxjobnum;
 
 
 extern int                    msleeptime;
+extern int                    subTryInterval;
+extern int                    maxPendJobs;
+extern int                    maxPendSlots;
 extern int                    numRemoveJobs;
 extern int                    eventPending;
 extern int                    qAttributes;
@@ -1282,7 +1289,7 @@ extern void                 updQaccount(struct jData *jData, int, int, int,
 extern struct uData *       getUserData(char *user);
 extern struct userAcct *    getUAcct(struct hTab *, struct uData *);
 extern struct hostAcct *    getHAcct(struct hTab  *, struct hData *);
-extern struct uData *       addUserData (char *, int, float, char *, int, int);
+extern struct uData *       addUserData (char *, int, float, int, int, char *, int, int);
 extern int                  checkUsers(struct infoReq *,
                                        struct userInfoReply *);
 extern void                 checkParams (struct infoReq *,

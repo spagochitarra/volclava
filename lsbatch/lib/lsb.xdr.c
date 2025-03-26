@@ -402,6 +402,7 @@ xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct LSFHeader *h
     }
     if (!(xdr_int(xdrs,&(jobArrId)) &&
 	  xdr_int(xdrs,&(reply->badReqIndx)) &&
+	  xdr_int(xdrs,&(reply->subTryInterval)) &&
 	  xdr_string(xdrs, &reply->queue, MAX_LSB_NAME_LEN) &&
 	  xdr_string(xdrs, &reply->badJobName, MAX_CMD_DESC_LEN)))
 	return (FALSE);
@@ -434,11 +435,15 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
 
     if (!(xdr_int(xdrs,&(paramInfo->mbatchdInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->sbatchdInterval)) &&
+	  xdr_int(xdrs,&(paramInfo->subTryInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->jobAcceptInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->maxDispRetries)) &&
 	  xdr_int(xdrs,&(paramInfo->maxSbdRetries)) &&
 	  xdr_int(xdrs,&(paramInfo->cleanPeriod)) &&
 	  xdr_int(xdrs,&(paramInfo->maxNumJobs)) &&
+	  xdr_int(xdrs,&(paramInfo->subTryInterval)) &&
+	  xdr_int(xdrs,&(paramInfo->maxPendJobs)) &&
+	  xdr_int(xdrs,&(paramInfo->maxPendSlots)) &&
 	  xdr_int(xdrs,&(paramInfo->pgSuspendIt))))
         return (FALSE);
 
@@ -1328,6 +1333,8 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
     if (!(xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN) &&
         xdr_float(xdrs, &userInfoEnt->procJobLimit) &&
         xdr_int(xdrs, &userInfoEnt->maxJobs) &&
+        xdr_int(xdrs, &userInfoEnt->maxPendJobs) &&
+        xdr_int(xdrs, &userInfoEnt->maxPendSlots) &&
         xdr_int(xdrs, &userInfoEnt->numStartJobs)))
 
         return (FALSE);
@@ -1335,6 +1342,7 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
 
     if (!(xdr_int(xdrs, &userInfoEnt->numJobs) &&
             xdr_int(xdrs, &userInfoEnt->numPEND) &&
+            xdr_int(xdrs, &userInfoEnt->numPENDJobs) &&
             xdr_int(xdrs, &userInfoEnt->numRUN) &&
             xdr_int(xdrs, &userInfoEnt->numSSUSP) &&
             xdr_int(xdrs, &userInfoEnt->numUSUSP)))

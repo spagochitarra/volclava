@@ -232,6 +232,21 @@ printLong (struct parameterInfo *reply)
         printf(" %20s = %d %s\n\n", "ACCT_ARCHIVE_SIZE", reply->acctArchiveInSize, I18N(2419, "kB")); /* catgets 2419 */
     }
 
+    if (reply->subTryInterval > 0) {
+        printf("%s:\n", I18N(2451,"Job submission retry interval")); /* catgets 2451 */
+        printf(" %20s = %d %s\n\n", "SUB_TRY_INTERVAL", reply->subTryInterval, I18N(2452, "seconds")); /* catgets 2452 */
+    }
+
+    if (reply->maxPendJobs > 0 && reply->maxPendJobs != INFINIT_INT) {
+        printf("%s:\n", I18N(2453,"System wide max pending jobs")); /* catgets 2453 */
+        printf(" %20s = %d\n\n", "MAX_PEND_JOBS", reply->maxPendJobs);
+    }
+
+    if (reply->maxPendSlots > 0 && reply->maxPendSlots != INFINIT_INT) {
+        printf("%s:\n", I18N(2454,"System wide max pending slots")); /* catgets 2454 */
+        printf(" %20s = %d\n\n", "MAX_PEND_SLOTS", reply->maxPendSlots);
+    }
+
     printf("%s:\n", "Mbatchd reserves resources based on job tasks");
     printf(" %28s = %s\n\n", "RESOURCE_RESERVE_PER_TASK", reply->resourcePerTask?"Y":"N");
 

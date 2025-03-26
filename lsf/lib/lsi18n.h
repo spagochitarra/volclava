@@ -1,4 +1,7 @@
-/* $Id: lsi18n.h 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsi18n.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -820,6 +823,12 @@
      (I18N_m(5015, "unreach"))  /*catgets5015*/
 #define I18N_User_Priority \
      (I18N_m(5016,"User Priority"))         /*catgets5016*/
+#define I18N_MPJOBS \
+     (I18N_m(5017,"MPJOBS"))         /*catgets5017*/
+#define I18N_PJOBS \
+     (I18N_m(5018,"PJOBS"))         /*catgets5017*/
+#define I18N_MPEND \
+     (I18N_m(5019,"MPEND"))         /*catgets5017*/
 
 #define I18N_View \
      (I18N_m(5200,"View"))        /*catgets5200*/
