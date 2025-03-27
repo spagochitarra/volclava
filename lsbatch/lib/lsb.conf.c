@@ -421,6 +421,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"SUB_TRY_INTERVAL", NULL, 0},
         {"MAX_PEND_JOBS", NULL, 0},
         {"MAX_PEND_SLOTS", NULL, 0},
+        {"DEFAULT_LIMIT_IGNORE_USER_GROUP", NULL, 0},
         {NULL, NULL, 0}
 
     };
@@ -687,6 +688,16 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                 } else {
                     pConf->param->subTryInterval = value;
                 }
+            } else if (i == 39) {
+                if (strcasecmp(keylist[i].val, "Y") == 0) {
+                    pConf->param->defaultLimitIgnoreUserGroup = TRUE;
+                } else if (strcasecmp(keylist[i].val, "N") == 0) {
+                    pConf->param->defaultLimitIgnoreUserGroup = FALSE;
+                } else {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5068, "%s: File %s in section Parameters ending at line %d: unrecognizable value <%s> for the keyword DEFAULT_LIMIT_IGNORE_USER_GROUP; ignored"),  /* catgets 5068 */
+                              pname, fname, *lineNum, keylist[i].val);
+                    pConf->param->defaultLimitIgnoreUserGroup = FALSE;
+                }
             } else if (i > 5) {
                 if ( i < 23 || i > 36)
                     value = my_atoi(keylist[i].val, INFINIT_INT, 0);
@@ -874,6 +885,7 @@ initParameterInfo(struct parameterInfo *param)
         param->subTryInterval = INFINIT_INT;
         param->maxPendJobs = INFINIT_INT;
         param->maxPendSlots = INFINIT_INT;
+        param->defaultLimitIgnoreUserGroup = FALSE;
     }
 }
 

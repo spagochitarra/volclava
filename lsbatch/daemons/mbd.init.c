@@ -1867,6 +1867,7 @@ setParams(struct paramConf *paramConf)
     setValue(subTryInterval, params->subTryInterval);
     setValue(maxPendJobs, params->maxPendJobs);
     setValue(maxPendSlots, params->maxPendSlots);
+    setValue(defaultLimitIgnoreUserGroup, params->defaultLimitIgnoreUserGroup);
     setValue(sbdSleepTime, params->sbatchdInterval);
     setValue(accept_intvl, params->jobAcceptInterval);
     setValue(max_retry, params->maxDispRetries);
@@ -2099,6 +2100,7 @@ setDefaultParams(void)
     subTryInterval = DEF_SUB_TRY_INTERVAL;
     maxPendJobs = INFINIT_INT;
     maxPendSlots = INFINIT_INT;
+    defaultLimitIgnoreUserGroup = FALSE;
     sbdSleepTime = DEF_SSLEEPTIME;
     accept_intvl = DEF_ACCEPT_INTVL;
     max_retry = DEF_MAX_RETRY;

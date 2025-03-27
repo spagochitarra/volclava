@@ -441,9 +441,9 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
 	  xdr_int(xdrs,&(paramInfo->maxSbdRetries)) &&
 	  xdr_int(xdrs,&(paramInfo->cleanPeriod)) &&
 	  xdr_int(xdrs,&(paramInfo->maxNumJobs)) &&
-	  xdr_int(xdrs,&(paramInfo->subTryInterval)) &&
 	  xdr_int(xdrs,&(paramInfo->maxPendJobs)) &&
 	  xdr_int(xdrs,&(paramInfo->maxPendSlots)) &&
+	  xdr_int(xdrs,&(paramInfo->defaultLimitIgnoreUserGroup)) &&
 	  xdr_int(xdrs,&(paramInfo->pgSuspendIt))))
         return (FALSE);
 

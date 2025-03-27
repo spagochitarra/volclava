@@ -845,6 +845,7 @@ struct parameterInfo {
     int  subTryInterval;
     int  maxPendJobs;
     int  maxPendSlots;
+    int  defaultLimitIgnoreUserGroup;
 };
 
 

@@ -1004,6 +1004,7 @@ getUserData (char *user)
     static char fname[] = "getUserData";
     hEnt   *userEnt;
     struct uData *uData, *defUser;
+    struct gData *uGrp = NULL;
 
     userEnt = h_getEnt_(&uDataList, user);
     if (userEnt != NULL)
@@ -1011,10 +1012,18 @@ getUserData (char *user)
 
 
     userEnt = h_getEnt_(&uDataList, "default");
+
     if (userEnt != NULL) {
-        defUser = (struct uData *) userEnt->hData;
-        uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit, defUser->maxPendJobs, defUser->maxPendSlots,
-                            "mbatchd/getUserData", FALSE, FALSE);
+        uGrp = getUGrpData(user);
+        if (uGrp != NULL && defaultLimitIgnoreUserGroup == TRUE) {
+            uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT, INFINIT_INT, INFINIT_INT,
+                                "mbatchd/getUserData", FALSE, FALSE);
+        } else {
+            defUser = (struct uData *) userEnt->hData;
+            uData = addUserData(user, defUser->maxJobs, defUser->pJobLimit, defUser->maxPendJobs, defUser->maxPendSlots,
+                                "mbatchd/getUserData", FALSE, FALSE);
+        }
+
         if (uData != NULL)
             return uData;
 
@@ -1266,6 +1275,7 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
     reply->subTryInterval = subTryInterval;
     reply->maxPendJobs = maxPendJobs;
     reply->maxPendSlots = maxPendSlots;
+    reply->defaultLimitIgnoreUserGroup = defaultLimitIgnoreUserGroup;
     reply->sbatchdInterval = sbdSleepTime;
     reply->jobAcceptInterval = accept_intvl;
 

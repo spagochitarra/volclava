@@ -247,6 +247,13 @@ printLong (struct parameterInfo *reply)
         printf(" %20s = %d\n\n", "MAX_PEND_SLOTS", reply->maxPendSlots);
     }
 
+    printf("%s:\n", I18N(2424,"the limits of 'default' user set in lsb.users would ignore user group")); /* catgets 2424 */
+    if (reply->defaultLimitIgnoreUserGroup == TRUE) {
+        printf(" %34s = TRUE\n\n", "DEFAULT_LIMIT_IGNORE_USER_GROUP"); /* catgets 2419 */
+    } else {
+        printf(" %34s = FALSE\n\n", "DEFAULT_LIMIT_IGNORE_USER_GROUP"); /* catgets 2419 */
+    }
+
     printf("%s:\n", "Mbatchd reserves resources based on job tasks");
     printf(" %28s = %s\n\n", "RESOURCE_RESERVE_PER_TASK", reply->resourcePerTask?"Y":"N");
 
