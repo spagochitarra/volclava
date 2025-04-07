@@ -386,6 +386,25 @@ struct config_param {
     char *paramValue;
 };
 
+typedef enum {
+    Megabytes,
+    Gigabytes,
+    Terabytes,
+    Petabytes,
+    Exabytes
+} unitTypes;
+
+#define UNIT_M    "M"
+#define UNIT_MB   "MB"
+#define UNIT_G    "G"
+#define UNIT_GB   "GB"
+#define UNIT_T    "T"
+#define UNIT_TB   "TB"
+#define UNIT_P    "P"
+#define UNIT_PB   "PB"
+#define UNIT_E    "E"
+#define UNIT_EB   "EB"
+
 struct  lsfRusage {
     double ru_utime;
     double ru_stime;
@@ -936,6 +955,8 @@ extern int ls_rmhost(const char *);
 extern struct lsEventRec  *ls_readeventrec(FILE *);
 extern int ls_writeeventrec(FILE *, struct lsEventRec *);
 extern int freeHostEntryLog(struct hostEntryLog **);
+extern unitTypes setUnitForLimits(char *);
+extern void strToUpper_(char *);
 
 struct extResInfo {
     char *name;

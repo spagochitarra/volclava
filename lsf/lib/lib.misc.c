@@ -204,6 +204,16 @@ strToLower_(char *name)
 
 }
 
+void
+strToUpper_(char *name)
+{
+    while (*name != '\0') {
+        *name = toupper(*name);
+        name++;
+    }
+
+}
+
 char *
 getNextToken(char **sp)
 {
