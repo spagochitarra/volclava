@@ -1,4 +1,7 @@
-/* $Id: lim.info.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lim.info.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -379,7 +382,7 @@ hostInfoReq(XDR *xdrs,
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, TRUE);
     tclHostData.ignDedicatedResource = ignDedicatedResource;
-    cc = parseResReq(hostInfoRequest.resReq, &resVal, &allInfo, propt);
+    cc = parseResReq(hostInfoRequest.resReq, &resVal, &allInfo, propt, unitForLimits);
     if (cc != PARSE_OK
         || evalResReq(resVal.selectStr,
                       &tclHostData,

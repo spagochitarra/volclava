@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,6 +34,7 @@ static int parseSelect(char * ,
                        struct resVal *,
                        struct lsInfo *,
                        bool_t,
+                       int,
                        int);
 static int parseOrder(char * ,
                       struct resVal *,
@@ -42,15 +44,18 @@ static int parseFilter(char * ,
                        struct lsInfo *);
 static int parseUsage(char * ,
                       struct resVal *,
-                      struct lsInfo *);
+                      struct lsInfo *,
+                      int);
 static int parseSpan (char *,
                       struct resVal *);
 static int resToClassNew(char * ,
                          struct resVal *,
-                         struct lsInfo *);
+                         struct lsInfo *,
+                         int);
 static int resToClassOld(char * ,
                          struct resVal *,
-                         struct lsInfo *);
+                         struct lsInfo *,
+                         int);
 static int setDefaults(struct resVal *,
                        struct lsInfo *,
                        int);
@@ -205,7 +210,8 @@ int
 parseResReq(char *resReq,
             struct resVal *resVal,
             struct lsInfo *lsInfo,
-            int options)
+            int options,
+            int unitForLimits)
 {
     static char       fname[] = "parseResReq()";
     int               cc;
@@ -233,14 +239,16 @@ parseResReq(char *resReq,
                                   resVal,
                                   lsInfo,
                                   TRUE,
-                                  options)) != PARSE_OK)
+                                  options,
+                                  unitForLimits)) != PARSE_OK)
                 return(cc);
         } else {
             if ((cc = parseSelect(reqSect.select,
                                   resVal,
                                   lsInfo,
                                   FALSE,
-                                  options)) != PARSE_OK)
+                                  options,
+                                  unitForLimits)) != PARSE_OK)
                 return(cc);
 	}
     }
@@ -255,7 +263,8 @@ parseResReq(char *resReq,
     if (options & PR_RUSAGE) {
         if ((cc = parseUsage(reqSect.rusage,
                              resVal,
-                             lsInfo)) != PARSE_OK)
+                             lsInfo,
+                             unitForLimits)) != PARSE_OK)
             return(cc);
     }
 
@@ -405,7 +414,7 @@ parseSection(char *resReq, struct sections *section)
 }
 
 static int
-parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t parseXor, int options)
+parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t parseXor, int options, int unitForLimits)
 {
     static char fname[] = "parseSelect";
     int cc;
@@ -471,7 +480,7 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
 		    FREEUP(resReq2);
 		    return (PARSE_BAD_MEM);
 		}
-		if ((cc = parseSelect(expr, &tmpResVal, lsInfo, FALSE, options)) != PARSE_OK) {
+		if ((cc = parseSelect(expr, &tmpResVal, lsInfo, FALSE, options, unitForLimits)) != PARSE_OK) {
 		    for (i--;i>=0; i--) {
 			FREEUP(resVal->xorExprs[i]);
 		    }
@@ -515,28 +524,28 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
     syntax = getSyntax(resReq);
     switch(syntax) {
         case OLD:
-            if ( (cc =resToClassOld(resReq, resVal, lsInfo)) != PARSE_OK) {
+            if ( (cc =resToClassOld(resReq, resVal, lsInfo, unitForLimits)) != PARSE_OK) {
                 resVal->selectStr[0] = '\0';
                 FREEUP(resReq2);
                 return(cc);
             }
             break;
         case NEW:
-            if ( (cc =resToClassNew(resReq, resVal, lsInfo)) != PARSE_OK) {
+            if ( (cc =resToClassNew(resReq, resVal, lsInfo, unitForLimits)) != PARSE_OK) {
                 resVal->selectStr[0] = '\0';
                 FREEUP(resReq2);
                 return (cc);
             }
             break;
         case EITHER:
-            if ((cc =resToClassOld(resReq, resVal, lsInfo)) != PARSE_OK)  {
+            if ((cc =resToClassOld(resReq, resVal, lsInfo, unitForLimits)) != PARSE_OK)  {
 
                 if (cc == PARSE_BAD_NAME || cc == PARSE_BAD_VAL) {
                     resVal->selectStr[0] = '\0';
                     FREEUP(resReq2);
                     return (cc);
                 }
-                if ( (cc =resToClassNew(resReq, resVal, lsInfo)) != PARSE_OK) {
+                if ( (cc =resToClassNew(resReq, resVal, lsInfo, unitForLimits)) != PARSE_OK) {
                     resVal->selectStr[0] = '\0';
                     FREEUP(resReq2);
                     return (cc);
@@ -627,9 +636,9 @@ parseFilter(char *filter, struct resVal *resVal, struct lsInfo *lsInfo)
 }
 
 static int
-parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
+parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo, int unitForLimits)
 {
-    int i, m, entry;
+    int i, j, m, entry;
     float value;
     char *token;
 
@@ -650,19 +659,19 @@ parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
 
         entry = getKeyEntry (token);
         if (entry > 0) {
-	    if (entry != KEY_DURATION && entry != KEY_DECAY)
+            if (entry != KEY_DURATION && entry != KEY_DECAY)
                 return(PARSE_BAD_NAME);
 
             if (usageReq[0] == '=') {
     	        int returnValue;
                 if (entry == KEY_DURATION)
-		    returnValue =  getTimeVal(&usageReq, &value);
+                    returnValue =  getTimeVal(&usageReq, &value);
                 else
-		    returnValue = getVal(&usageReq, &value);
+                    returnValue = getVal(&usageReq, &value);
                 if (returnValue < 0 || value < 0.0)
-		    return PARSE_BAD_VAL;
+                    return PARSE_BAD_VAL;
                 if (entry == KEY_DURATION)
-	            resVal->duration = value;
+                    resVal->duration = value;
                 else
                     resVal->decay = value;
 
@@ -677,7 +686,7 @@ parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
 
 
         if (!(lsInfo->resTable[entry].flags & RESF_DYNAMIC) &&
-	    (lsInfo->resTable[entry].valueType != LS_NUMERIC)) {
+        (lsInfo->resTable[entry].valueType != LS_NUMERIC)) {
             if (usageReq[0] == '=') {
                 if (getVal(&usageReq, &value) < 0 || value < 0.0)
                     return PARSE_BAD_VAL;
@@ -685,13 +694,21 @@ parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
             continue;
         }
 
-	if (entry < MAXSRES)
+        if (entry < MAXSRES)
             resVal->genClass |= 1 << entry;
-	SET_BIT(entry, resVal->rusgBitMaps);
+        SET_BIT(entry, resVal->rusgBitMaps);
         if (usageReq[0] == '=') {
             if (getVal(&usageReq, &value) < 0 || value < 0.0)
                 return PARSE_BAD_VAL;
             resVal->val[entry] = value;
+
+            // deal with LSF_UNIT_FOR_LIMITS
+            if (entry == MEM || entry == SWP || entry == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    resVal->val[entry] = resVal->val[entry] * 1000;
+                    value = value * 1000;
+                }
+            }
         }
     }
     resVal->options |= PR_RUSAGE;
@@ -815,9 +832,9 @@ validValue(char *value, struct lsInfo *lsInfo, int nentry)
 
 
 static int
-resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
+resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, int unitForLimits)
 {
-    int i, s, t, len, entry, hasFunction = FALSE, hasQuote;
+    int i, j, s, t, len, entry, hasFunction = FALSE, hasQuote;
     char res[MAXLSFNAMELEN], val[MAXLSFNAMELEN];
     char tmpbuf[MAXLSFNAMELEN*2];
     char *sp, *op;
@@ -843,9 +860,22 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
              resReq[s] == '!' || resReq[s] == '>' || resReq[s] == '<' ||
              resReq[s] == '|' || resReq[s] == '&' || resReq[s] == '+' ||
              resReq[s] == '-' || resReq[s] == '*' || resReq[s] == '/' ||
-             resReq[s] == '.' || IS_DIGIT(resReq[s])) {
+             resReq[s] == '.' ) {
 
             sp[t++] = resReq[s++];
+            continue;
+        }
+
+        if (IS_DIGIT(resReq[s])){
+            sp[t++] = resReq[s++];
+
+            // deal with LSF_UNIT_FOR_LIMITS
+            if (( resReq[s] == '\0' || ! IS_DIGIT(resReq[s]) ) && ( entry == MEM || entry == SWP || entry == TMP )) {
+                for (j = 0; j < unitForLimits * 3 ; j++) {
+                    sp[t++] = '0';
+                }
+            }
+
             continue;
         }
 
@@ -866,7 +896,7 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
                     if (resReq[s] != '(')
                         return (PARSE_BAD_EXP);
                     i = 0;
-		    s++;
+                    s++;
                     while (IS_LETTER(resReq[s]) || IS_DIGIT(resReq[s]) ||
                            IS_VALID_OTHER(resReq[s]))
                         res[i++] = resReq[s++];
@@ -874,7 +904,7 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
                     entry = getResEntry(res);
                     if (entry < 0)
                         return PARSE_BAD_NAME;
-		    sprintf(tmpbuf,"[%s \"%s\" ]",
+                    sprintf(tmpbuf,"[%s \"%s\" ]",
                             "defined", lsInfo->resTable[entry].name);
                     sp[t] = '\0';
                     strcat(sp,tmpbuf);
@@ -967,7 +997,7 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
                 default:
                     break;
             }
-	    hasFunction = FALSE;
+            hasFunction = FALSE;
         } else {
             return (PARSE_BAD_EXP);
         }
@@ -979,9 +1009,9 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
 }
 
 static int
-resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
+resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, int unitForLimits)
 {
-    int i, m, entry;
+    int i, j, m, entry;
     char *token;
     char tmpbuf[MAXLINELEN];
     float value;
@@ -992,11 +1022,11 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
         return PARSE_OK;
 
     for (m=0; m<i; m++)
-	if (resReq[m] != ' ')
-	    break;
+        if (resReq[m] != ' ')
+            break;
 
     if (m == i)
-	return PARSE_OK;
+        return PARSE_OK;
 
     if (resReq[0] == ':' || resReq[0] == '=')
         return PARSE_BAD_EXP;
@@ -1029,13 +1059,13 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
         }
 
         entry = getResEntry(token);
-	if (entry < 0)
+        if (entry < 0)
             return(PARSE_BAD_NAME);
 
         if (lsInfo->resTable[entry].valueType == LS_BOOLEAN) {
- 	    if (negate)
+            if (negate)
                 sprintf(tmpbuf,"!%s()&&",lsInfo->resTable[entry].name);
-	    else
+            else
                 sprintf(tmpbuf,"%s()&&",lsInfo->resTable[entry].name);
             strcat(resVal->selectStr, tmpbuf);
             t += strlen(tmpbuf);
@@ -1059,10 +1089,17 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
 
             if (!valueSpecified && entry == IT) {
                 valueSpecified = TRUE;
- 		value = IDLETIME;
+                value = IDLETIME;
                 resVal->val[entry] = value;
      	    }
 
+            // deal with LSF_UNIT_FOR_LIMITS
+            if (entry == MEM || entry == SWP || entry == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    resVal->val[entry] = resVal->val[entry] * 1000;
+                    value = value * 1000;
+                }
+            }
 
             if (valueSpecified) {
                 if (lsInfo->resTable[entry].orderType == INCR)

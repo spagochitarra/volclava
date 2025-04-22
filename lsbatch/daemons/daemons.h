@@ -530,7 +530,7 @@ extern void touchElogLock(void);
 extern void releaseElogLock(void);
 extern struct listEntry *tmpListHeader (struct listEntry *listHeader);
 extern struct tclLsInfo * getTclLsInfo(void);
-extern struct resVal * checkThresholdCond (char *);
+extern struct resVal * checkThresholdCond (char *, int);
 extern int * getResMaps(int, char **);
 extern int checkResumeByLoad (LS_LONG_INT, int, struct thresholds, struct hostLoad *, int *, int *, int, struct resVal *, struct tclHostData *);
 extern void closeExceptFD(int);
