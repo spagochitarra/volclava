@@ -2138,6 +2138,7 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
     int i;
     int badqueue;
     int j;
+    int m;
     struct qData *qPtr;
     struct qData *oldQPtr;
     struct queueInfoEnt *queue;
@@ -2356,8 +2357,26 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
         for (j = 0; j < LSF_RLIM_NLIMITS; j++) {
             if (queue->rLimits[j] == INFINIT_INT)
                 qPtr->rLimits[j] = -1;
-            else
+            else {
                 qPtr->rLimits[j] = queue->rLimits[j];
+
+                // previous LSF_RLIMIT_CORE|LSF_RLIMIT_RSS|LSF_RLIMIT_STACK|LSF_RLIMIT_SWAP are in KB
+                // now they are in MB or bigger unit
+                // and the value range need less than 2T with configure of LSF_UNIT_FOR_LIMITS in lsf.conf
+                if (j == LSF_RLIMIT_CORE || j == LSF_RLIMIT_RSS || j == LSF_RLIMIT_STACK || j == LSF_RLIMIT_SWAP) {
+                    for (m = 0; m <= unitForLimits; m++) {
+                        qPtr->rLimits[j] *= 1024;
+                    }
+                    if (qPtr->rLimits[j] < 0) {
+                        ls_syslog(LOG_ERR, "%s: Invalid qPtr->rLimits[%d] value %d, beyond [0~2T), in queue <%s>; ignored",
+                                  __func__,
+                                  j,
+                                  queue->rLimits[j],
+                                  qPtr->queue);
+                        qPtr->rLimits[j] = -1;
+                    }
+                }
+            }
 
             if (queue->defLimits[j] == INFINIT_INT)
                 qPtr->defLimits[j] = -1;
