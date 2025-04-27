@@ -453,7 +453,8 @@
 #define    LSBE_DEP_ARRAY_SIZE      131
 #define    LSBE_JOB_MAX_PEND        132
 #define    LSBE_SLOTS_MAX_PEND      133
-#define    LSBE_NUM_ERR             133
+#define    LSBE_BAD_RLIMIT          134
+#define    LSBE_NUM_ERR             134
 
 
 #define PREPARE_FOR_OP          1024

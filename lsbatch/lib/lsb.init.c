@@ -1,4 +1,7 @@
-/* $Id: lsb.init.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsb.init.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,6 +40,7 @@ struct config_param lsbParams[] = {
      {"LSF_INTERACTIVE_STDERR", NULL}, 
      {"LSB_32_PAREN_ESC", NULL},
      {"LSB_API_QUOTE_CMD", NULL},
+     {"LSF_UNIT_FOR_LIMITS", NULL},
      {NULL, NULL}
 };
 
@@ -50,6 +54,7 @@ int _lsb_recvtimeout = DEFAULT_API_RECVTIMEOUT;
 int _lsb_fakesetuid = 0;
 
 int lsbMode_ = LSB_MODE_BATCH;
+unitTypes lsbUnitForLimits = Megabytes;
 
 extern int bExceptionTabInit(void);
 extern int mySubUsage_(void *);
@@ -106,7 +111,11 @@ lsb_init (char *appName)
     getLogClass_(lsbParams[LSB_DEBUG_CMD].paramValue,
                  lsbParams[LSB_TIME_CMD].paramValue);
 
-    
+    if (lsbParams[LSB_UNIT_FOR_LIMITS].paramValue != NULL) {
+        strToUpper_(lsbParams[LSB_UNIT_FOR_LIMITS].paramValue);
+        lsbUnitForLimits = setUnitForLimits(lsbParams[LSB_UNIT_FOR_LIMITS].paramValue);
+    }
+
     if (bExceptionTabInit()) {
 	lsberrno = LSBE_LSBLIB;
 	return(-1);

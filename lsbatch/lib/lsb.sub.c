@@ -135,6 +135,7 @@ extern char *lsb_sysmsg (void);
 extern int _lsb_conntimeout;
 
 extern int lsbMode_;
+extern int lsbUnitForLimits;
 
 static char *useracctmap = NULL;
 static struct lenData ed = {0, NULL};
@@ -296,9 +297,9 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
 
 int
 getCommonParams (struct submit  *jobSubReq, struct submitReq *submitReq,
-                                             struct submitReply *submitRep)
+                 struct submitReply *submitRep)
 {
-    int i, useKb = 0;
+    int i, m, useKb = 0;
     static char fname[] = "getCommonParams";
 
     if (logclass & (LC_TRACE | LC_EXEC))
@@ -417,40 +418,72 @@ getCommonParams (struct submit  *jobSubReq, struct submitReq *submitReq,
 	}
     }
     if (jobSubReq->rLimits[LSF_RLIMIT_STACK] > 0) {
-	if (useKb) {
-	    submitReq->rLimits[LSF_RLIMIT_STACK]
-		    = jobSubReq->rLimits[LSF_RLIMIT_STACK];
-	} else {
-	    submitReq->rLimits[LSF_RLIMIT_STACK]
-		    = jobSubReq->rLimits[LSF_RLIMIT_STACK] * 1024;
-	}
+/*        if (useKb) {
+            submitReq->rLimits[LSF_RLIMIT_STACK]
+                = jobSubReq->rLimits[LSF_RLIMIT_STACK];
+        } else {
+            submitReq->rLimits[LSF_RLIMIT_STACK]
+                = jobSubReq->rLimits[LSF_RLIMIT_STACK] * 1024;
+        }*/
+        submitReq->rLimits[LSF_RLIMIT_STACK] = jobSubReq->rLimits[LSF_RLIMIT_STACK];
+        for (m = 0; m <= lsbUnitForLimits; m++) {
+            submitReq->rLimits[LSF_RLIMIT_STACK] *= 1024;
+            if (submitReq->rLimits[LSF_RLIMIT_STACK] < 0) {
+                lsberrno = LSBE_BAD_RLIMIT;
+                return (-1);
+            }
+        }
     }
     if (jobSubReq->rLimits[LSF_RLIMIT_CORE] >= 0) {
-	if (useKb) {
-	    submitReq->rLimits[LSF_RLIMIT_CORE]
-	       = jobSubReq->rLimits[LSF_RLIMIT_CORE];
-	} else {
-	    submitReq->rLimits[LSF_RLIMIT_CORE]
-	       = jobSubReq->rLimits[LSF_RLIMIT_CORE] * 1024;
-	}
+/*        if (useKb) {
+            submitReq->rLimits[LSF_RLIMIT_CORE]
+               = jobSubReq->rLimits[LSF_RLIMIT_CORE];
+        } else {
+            submitReq->rLimits[LSF_RLIMIT_CORE]
+               = jobSubReq->rLimits[LSF_RLIMIT_CORE] * 1024;
+        }*/
+        submitReq->rLimits[LSF_RLIMIT_CORE] = jobSubReq->rLimits[LSF_RLIMIT_CORE];
+        for (m = 0; m <= lsbUnitForLimits; m++) {
+            submitReq->rLimits[LSF_RLIMIT_CORE] *= 1024;
+            if (submitReq->rLimits[LSF_RLIMIT_CORE] < 0) {
+                lsberrno = LSBE_BAD_RLIMIT;
+                return (-1);
+            }
+        }
     }
     if (jobSubReq->rLimits[LSF_RLIMIT_RSS] > 0) {
-	if (useKb) {
-	    submitReq->rLimits[LSF_RLIMIT_RSS]
-	       = jobSubReq->rLimits[LSF_RLIMIT_RSS];
-	} else {
-	    submitReq->rLimits[LSF_RLIMIT_RSS]
-	       = jobSubReq->rLimits[LSF_RLIMIT_RSS] * 1024;
-	}
+/*        if (useKb) {
+            submitReq->rLimits[LSF_RLIMIT_RSS]
+               = jobSubReq->rLimits[LSF_RLIMIT_RSS];
+        } else {
+            submitReq->rLimits[LSF_RLIMIT_RSS]
+               = jobSubReq->rLimits[LSF_RLIMIT_RSS] * 1024;
+        }*/
+        submitReq->rLimits[LSF_RLIMIT_RSS] = jobSubReq->rLimits[LSF_RLIMIT_RSS];
+        for (m = 0; m <= lsbUnitForLimits; m++) {
+            submitReq->rLimits[LSF_RLIMIT_RSS] *= 1024;
+            if (submitReq->rLimits[LSF_RLIMIT_RSS] < 0) {
+                lsberrno = LSBE_BAD_RLIMIT;
+                return (-1);
+            }
+        }
     }
     if (jobSubReq->rLimits[LSF_RLIMIT_SWAP] > 0) {
-	if (useKb) {
-	    submitReq->rLimits[LSF_RLIMIT_SWAP]
-               = jobSubReq->rLimits[LSF_RLIMIT_SWAP];
-	} else {
-	    submitReq->rLimits[LSF_RLIMIT_SWAP]
-               = jobSubReq->rLimits[LSF_RLIMIT_SWAP] * 1024;
-	}
+/*        if (useKb) {
+            submitReq->rLimits[LSF_RLIMIT_SWAP]
+                   = jobSubReq->rLimits[LSF_RLIMIT_SWAP];
+        } else {
+            submitReq->rLimits[LSF_RLIMIT_SWAP]
+                   = jobSubReq->rLimits[LSF_RLIMIT_SWAP] * 1024;
+        }*/
+        submitReq->rLimits[LSF_RLIMIT_SWAP] = jobSubReq->rLimits[LSF_RLIMIT_SWAP];
+        for (m = 0; m <= lsbUnitForLimits; m++) {
+            submitReq->rLimits[LSF_RLIMIT_SWAP] *= 1024;
+            if (submitReq->rLimits[LSF_RLIMIT_SWAP] < 0) {
+                lsberrno = LSBE_BAD_RLIMIT;
+                return (-1);
+            }
+        }
     }
 
     if (jobSubReq->rLimits[LSF_RLIMIT_PROCESS] > 0)

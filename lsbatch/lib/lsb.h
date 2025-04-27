@@ -1,4 +1,7 @@
-/* $Id: lsb.h 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsb.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -67,7 +70,8 @@ extern int sig_encode(int);
 #define LSB_INTERACTIVE_STDERR 14 
 #define LSB_32_PAREN_ESC     15 
 
-#define LSB_API_QUOTE_CMD     14 
+#define LSB_API_QUOTE_CMD     16
+#define LSB_UNIT_FOR_LIMITS   17
 
 
 typedef struct lsbSubSpoolFile {
