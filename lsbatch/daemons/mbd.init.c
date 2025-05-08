@@ -718,7 +718,7 @@ addHost(struct hostInfo *lsf,
     hEnt *ent;
     struct hData *hPtr;
     int new;
-    int i;
+    int i, j;
     char *word;
 
     if (first) {
@@ -818,12 +818,27 @@ addHost(struct hostInfo *lsf,
     for (i = 0; i < allLsInfo->numIndx; i++) {
 
         if (thPtr->loadSched != NULL
-            && thPtr->loadSched[i] != INFINIT_FLOAT)
+            && thPtr->loadSched[i] != INFINIT_FLOAT) {
+
             hPtr->loadSched[i] = thPtr->loadSched[i];
+            if (i == MEM || i == SWP || i == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    hPtr->loadSched[i] *=  1024;
+                }
+            }
+        }
 
         if (thPtr->loadStop != NULL
-            && thPtr->loadStop[i] != INFINIT_FLOAT)
+            && thPtr->loadStop[i] != INFINIT_FLOAT) {
+
             hPtr->loadStop[i] = thPtr->loadStop[i];
+            if (i == MEM || i == SWP || i == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    hPtr->loadStop[i] *=  1024;
+                }
+            }
+        }
+
     }
 
     hPtr->flags |= HOST_UPDATE;
@@ -2137,7 +2152,7 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 {
     int i;
     int badqueue;
-    int j;
+    int j, k;
     int m;
     struct qData *qPtr;
     struct qData *oldQPtr;
@@ -2485,10 +2500,25 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 
         initThresholds (qPtr->loadSched, qPtr->loadStop);
         for (j = 0; j < queue->nIdx; j++) {
-            if (queue->loadSched[j] != INFINIT_FLOAT)
+            if (queue->loadSched[j] != INFINIT_FLOAT) {
+
                 qPtr->loadSched[j] = queue->loadSched[j];
-            if (queue->loadStop[j] != INFINIT_FLOAT)
+                if (j == MEM || j == SWP || j == TMP) {
+                    for (k = 0; k < unitForLimits; k++) {
+                        qPtr->loadSched[j] *=  1024;
+                    }
+                }
+            }
+
+            if (queue->loadStop[j] != INFINIT_FLOAT) {
+
                 qPtr->loadStop[j] = queue->loadStop[j];
+                if (j == MEM || j == SWP || j == TMP) {
+                    for (k = 0; k < unitForLimits; k++) {
+                        qPtr->loadStop[j] *=  1024;
+                    }
+                }
+            }
         }
 
         setValue(qPtr->chkpntPeriod, queue->chkpntPeriod);
