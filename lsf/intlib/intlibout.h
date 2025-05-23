@@ -1,4 +1,7 @@
-/* $Id: intlibout.h 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: intlibout.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -84,9 +87,10 @@ extern int            hostOk(char *, int);
 extern int            hostIsLocal(char *);
 extern int getHostAttribNonLim(char *hname, int updateIntvl);
 extern int            parseResReq (char *,
-				   struct resVal *,
-				   struct lsInfo *,
-				   int);
+                                   struct resVal *,
+                                   struct lsInfo *,
+                                   int,
+                                   int);
 extern void           initParse(struct lsInfo *);
 extern int            getResEntry(const char *);
 extern void           freeResVal(struct resVal *resVal);

@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
  * Copyright (C) 2011 David Bigagli
  *
  * $Id: lim.h 397 2007-11-26 19:04:00Z mblack $
@@ -317,8 +319,10 @@ typedef enum {
     LIM_COMPUTE_ONLY,
     LSB_SHAREDIR,
     LIM_NO_MIGRANT_HOSTS,
-    LIM_NO_FORK
+    LIM_NO_FORK,
+    LSF_UNIT_FOR_LIMITS
 } limParams_t;
+
 
 #define LOOP_ADDR       0x7F000001
 
@@ -385,6 +389,8 @@ extern int numMasterCandidates;
 extern int isMasterCandidate;
 extern int limConfReady;
 extern int kernelPerm;
+
+extern unitTypes    unitForLimits;
 
 
 

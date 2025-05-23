@@ -287,7 +287,7 @@ do_switchjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 
     lsbFreeResVal (&jp->resumeCondVal);
     if (jobSpecs.resumeCond && jobSpecs.resumeCond[0] != '\0') {
-        if ((jp->resumeCondVal = checkThresholdCond (jobSpecs.resumeCond))
+        if ((jp->resumeCondVal = checkThresholdCond (jobSpecs.resumeCond, unitForLimits))
             == NULL) 
             ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S, fname, 
 		      lsb_jobid2str(jp->jobSpecs.jobId),
@@ -296,7 +296,7 @@ do_switchjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 
     lsbFreeResVal (&jp->stopCondVal);
     if (jobSpecs.stopCond && jobSpecs.stopCond[0] != '\0') {
-        if ((jp->stopCondVal = checkThresholdCond (jobSpecs.stopCond))
+        if ((jp->stopCondVal = checkThresholdCond (jobSpecs.stopCond, unitForLimits))
             == NULL) 
             ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S, fname, 
 		      lsb_jobid2str(jp->jobSpecs.jobId),

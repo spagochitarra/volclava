@@ -1,4 +1,7 @@
-/* $Id: misc.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: misc.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -920,4 +923,28 @@ cleanDynDbgEnv(void)
 
 void
 displayEnhancementNames(void) {
+}
+
+unitTypes setUnitForLimits(char *unitParamValue) {
+    if (strcasecmp(unitParamValue, UNIT_M) == 0 || strcasecmp(unitParamValue, UNIT_MB) == 0) {
+        return Megabytes;
+    }
+
+    if (strcasecmp(unitParamValue, UNIT_G) == 0 || strcasecmp(unitParamValue, UNIT_GB) == 0) {
+        return Gigabytes;
+    }
+
+    if (strcasecmp(unitParamValue, UNIT_T) == 0 || strcasecmp(unitParamValue, UNIT_TB) == 0) {
+        return Terabytes;
+    }
+
+    if (strcasecmp(unitParamValue, UNIT_P) == 0 || strcasecmp(unitParamValue, UNIT_PB) == 0) {
+        return Petabytes;
+    }
+
+    if (strcasecmp(unitParamValue, UNIT_E) == 0 || strcasecmp(unitParamValue, UNIT_EB) == 0) {
+        return Exabytes;
+    }
+
+    return Megabytes;
 }

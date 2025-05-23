@@ -869,6 +869,7 @@ extern int                    debug;
 extern int                    errno;
 extern int                    nextId;
 extern int                    numRemoteJobsInList;
+extern unitTypes              unitForLimits;
 
 
 extern char                   *defaultQueues;

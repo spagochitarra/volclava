@@ -1,4 +1,7 @@
-/* $Id: lsb.misc.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsb.misc.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -340,10 +343,10 @@ convertRLimit(int *pRLimits, int toKb)
 	switch (i) {
 	    case LSF_RLIMIT_FSIZE:
 	    case LSF_RLIMIT_DATA:
-	    case LSF_RLIMIT_STACK:
-	    case LSF_RLIMIT_CORE:
-	    case LSF_RLIMIT_RSS:
-	    case LSF_RLIMIT_VMEM:
+//	    case LSF_RLIMIT_STACK:
+//	    case LSF_RLIMIT_CORE:
+//	    case LSF_RLIMIT_RSS:
+//	    case LSF_RLIMIT_VMEM:
 		if (pRLimits[i] > 0) {
 		    if (toKb) {
 			pRLimits[i] /= 1024;

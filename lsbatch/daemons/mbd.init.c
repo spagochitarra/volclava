@@ -718,7 +718,7 @@ addHost(struct hostInfo *lsf,
     hEnt *ent;
     struct hData *hPtr;
     int new;
-    int i;
+    int i, j;
     char *word;
 
     if (first) {
@@ -818,12 +818,27 @@ addHost(struct hostInfo *lsf,
     for (i = 0; i < allLsInfo->numIndx; i++) {
 
         if (thPtr->loadSched != NULL
-            && thPtr->loadSched[i] != INFINIT_FLOAT)
+            && thPtr->loadSched[i] != INFINIT_FLOAT) {
+
             hPtr->loadSched[i] = thPtr->loadSched[i];
+            if (i == MEM || i == SWP || i == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    hPtr->loadSched[i] *=  1024;
+                }
+            }
+        }
 
         if (thPtr->loadStop != NULL
-            && thPtr->loadStop[i] != INFINIT_FLOAT)
+            && thPtr->loadStop[i] != INFINIT_FLOAT) {
+
             hPtr->loadStop[i] = thPtr->loadStop[i];
+            if (i == MEM || i == SWP || i == TMP) {
+                for (j = 0; j < unitForLimits; j++) {
+                    hPtr->loadStop[i] *=  1024;
+                }
+            }
+        }
+
     }
 
     hPtr->flags |= HOST_UPDATE;
@@ -2137,7 +2152,8 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 {
     int i;
     int badqueue;
-    int j;
+    int j, k;
+    int m;
     struct qData *qPtr;
     struct qData *oldQPtr;
     struct queueInfoEnt *queue;
@@ -2356,8 +2372,26 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
         for (j = 0; j < LSF_RLIM_NLIMITS; j++) {
             if (queue->rLimits[j] == INFINIT_INT)
                 qPtr->rLimits[j] = -1;
-            else
+            else {
                 qPtr->rLimits[j] = queue->rLimits[j];
+
+                // previous LSF_RLIMIT_CORE|LSF_RLIMIT_RSS|LSF_RLIMIT_STACK|LSF_RLIMIT_SWAP are in KB
+                // now they are in MB or bigger unit
+                // and the value range need less than 2T with configure of LSF_UNIT_FOR_LIMITS in lsf.conf
+                if (j == LSF_RLIMIT_CORE || j == LSF_RLIMIT_RSS || j == LSF_RLIMIT_STACK || j == LSF_RLIMIT_SWAP) {
+                    for (m = 0; m <= unitForLimits; m++) {
+                        qPtr->rLimits[j] *= 1024;
+                    }
+                    if (qPtr->rLimits[j] < 0) {
+                        ls_syslog(LOG_ERR, "%s: Invalid qPtr->rLimits[%d] value %d, beyond [0~2T), in queue <%s>; ignored",
+                                  __func__,
+                                  j,
+                                  queue->rLimits[j],
+                                  qPtr->queue);
+                        qPtr->rLimits[j] = -1;
+                    }
+                }
+            }
 
             if (queue->defLimits[j] == INFINIT_INT)
                 qPtr->defLimits[j] = -1;
@@ -2466,10 +2500,25 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 
         initThresholds (qPtr->loadSched, qPtr->loadStop);
         for (j = 0; j < queue->nIdx; j++) {
-            if (queue->loadSched[j] != INFINIT_FLOAT)
+            if (queue->loadSched[j] != INFINIT_FLOAT) {
+
                 qPtr->loadSched[j] = queue->loadSched[j];
-            if (queue->loadStop[j] != INFINIT_FLOAT)
+                if (j == MEM || j == SWP || j == TMP) {
+                    for (k = 0; k < unitForLimits; k++) {
+                        qPtr->loadSched[j] *=  1024;
+                    }
+                }
+            }
+
+            if (queue->loadStop[j] != INFINIT_FLOAT) {
+
                 qPtr->loadStop[j] = queue->loadStop[j];
+                if (j == MEM || j == SWP || j == TMP) {
+                    for (k = 0; k < unitForLimits; k++) {
+                        qPtr->loadStop[j] *=  1024;
+                    }
+                }
+            }
         }
 
         setValue(qPtr->chkpntPeriod, queue->chkpntPeriod);

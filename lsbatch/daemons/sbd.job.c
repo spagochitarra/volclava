@@ -2484,7 +2484,7 @@ refreshJob (struct jobSpecs *jobSpecs)
         }
         lsbFreeResVal (&jp->resumeCondVal);
         if (jobSpecs->resumeCond && jobSpecs->resumeCond[0] != '\0') {
-            if ((jp->resumeCondVal = checkThresholdCond (jobSpecs->resumeCond))
+            if ((jp->resumeCondVal = checkThresholdCond (jobSpecs->resumeCond, unitForLimits))
                 == NULL)
                 ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S_M, fname,
                           lsb_jobid2str(jp->jobSpecs.jobId), "checkThresholdCond", "resumeCond");
@@ -2492,7 +2492,7 @@ refreshJob (struct jobSpecs *jobSpecs)
 
         lsbFreeResVal (&jp->stopCondVal);
         if (jobSpecs->stopCond  && jobSpecs->stopCond[0] != '\0') {
-            if ((jp->stopCondVal = checkThresholdCond (jobSpecs->stopCond))
+            if ((jp->stopCondVal = checkThresholdCond (jobSpecs->stopCond, unitForLimits))
                 == NULL)
                 ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S_M, fname,
                           lsb_jobid2str(jp->jobSpecs.jobId), "checkThresholdCond", "stopCond");
@@ -4183,7 +4183,7 @@ initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *reply)
         }
     }
     if (jobSpecs->resumeCond && jobSpecs->resumeCond[0] != '\0') {
-        if ((jp->resumeCondVal = checkThresholdCond (jobSpecs->resumeCond))
+        if ((jp->resumeCondVal = checkThresholdCond (jobSpecs->resumeCond, unitForLimits))
             == NULL)  {
             ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S_M, fname,
                       lsb_jobid2str(jp->jobSpecs.jobId),
@@ -4195,7 +4195,7 @@ initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *reply)
     }
 
     if (jobSpecs->stopCond && jobSpecs->stopCond[0] != '\0') {
-        if ((jp->stopCondVal = checkThresholdCond (jobSpecs->stopCond))
+        if ((jp->stopCondVal = checkThresholdCond (jobSpecs->stopCond, unitForLimits))
             == NULL) {
             ls_syslog(LOG_ERR, I18N_JOB_FAIL_S_S_M, fname,
                       lsb_jobid2str(jp->jobSpecs.jobId),

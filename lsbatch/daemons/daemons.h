@@ -157,7 +157,9 @@
 #define LSB_STDOUT_DIRECT      53
 #define MBD_DONT_FORK          54
 #define LIM_NO_MIGRANT_HOSTS   55
+#define LSF_UNIT_FOR_LIMITS    56
 #define NOT_LOG  INFINIT_INT
+
 
 #define JOB_SAVE_OUTPUT   0x10000000
 #define JOB_FORCE_KILL    0x20000000
@@ -528,7 +530,7 @@ extern void touchElogLock(void);
 extern void releaseElogLock(void);
 extern struct listEntry *tmpListHeader (struct listEntry *listHeader);
 extern struct tclLsInfo * getTclLsInfo(void);
-extern struct resVal * checkThresholdCond (char *);
+extern struct resVal * checkThresholdCond (char *, int);
 extern int * getResMaps(int, char **);
 extern int checkResumeByLoad (LS_LONG_INT, int, struct thresholds, struct hostLoad *, int *, int *, int, struct resVal *, struct tclHostData *);
 extern void closeExceptFD(int);
@@ -536,7 +538,6 @@ extern void freeLsfHostInfo (struct hostInfo  *, int);
 extern void copyLsfHostInfo (struct hostInfo *, struct hostInfo *);
 extern void freeTclHostData (struct tclHostData *);
 extern void lsbFreeResVal (struct resVal **);
-
 
 int initTcl(struct tclLsInfo *);
 

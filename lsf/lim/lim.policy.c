@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
  * Copyright (C) 2011 David Bigagli
  *
  * $Id: lim.policy.c 397 2007-11-26 19:04:00Z mblack $
@@ -129,7 +131,7 @@ placeReq(XDR *xdrs,
         propt |= PR_DEFFROMTYPE;
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, TRUE);
-    cc = parseResReq(plReq.resReq, &resVal, &allInfo, propt);
+    cc = parseResReq(plReq.resReq, &resVal, &allInfo, propt, unitForLimits);
     if (cc != PARSE_OK ||
         (returnCode = evalResReq(resVal.selectStr,
                                  &tclHostData,
@@ -1132,7 +1134,7 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, TRUE);
     tclHostData.ignDedicatedResource = ignDedicatedResource;
-    cc=parseResReq(jobXfer.resReq, &resVal, &allInfo, PR_RUSAGE);
+    cc=parseResReq(jobXfer.resReq, &resVal, &allInfo, PR_RUSAGE, unitForLimits);
     if ((cc != PARSE_OK) ||
         (returnCode = evalResReq(resVal.selectStr, &tclHostData, FALSE)) < 0) {
         if (cc == PARSE_BAD_VAL)
@@ -1211,7 +1213,7 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
     }
     initResVal (&resVal);
 
-    if (parseResReq(resReq, &resVal, &allInfo, PR_RUSAGE) != PARSE_OK) {
+    if (parseResReq(resReq, &resVal, &allInfo, PR_RUSAGE, unitForLimits) != PARSE_OK) {
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "parseResReq", resReq);
         return;
     }
@@ -1365,7 +1367,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, TRUE);
     tclHostData.ignDedicatedResource = ignDedicatedResource;
-    cc = parseResReq(ldReq.resReq, &resVal, &allInfo, propt);
+    cc = parseResReq(ldReq.resReq, &resVal, &allInfo, propt, unitForLimits);
     if((cc != PARSE_OK) ||
        (returnCode = evalResReq(resVal.selectStr,
                                 &tclHostData, ldReq.options & DFT_FROMTYPE)) < 0) {
@@ -1636,7 +1638,7 @@ chkResReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
     limReplyCode = LIME_NO_ERR;
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, TRUE);
-    cc = parseResReq(resReq, &resVal, &allInfo, PR_ALL);
+    cc = parseResReq(resReq, &resVal, &allInfo, PR_ALL, unitForLimits);
     if (cc != PARSE_OK ||
         evalResReq(resVal.selectStr, &tclHostData, FALSE) < 0) {
         if (cc == PARSE_BAD_VAL)

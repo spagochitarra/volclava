@@ -106,6 +106,8 @@ struct jData *jDataList[ALLJLIST];
 int    pendJobSlots = 0;
 struct jData *chkJList;
 
+unitTypes unitForLimits = Megabytes;
+
 struct hTab cpuFactors;
 struct gData *usergroups[MAX_GROUPS];
 struct gData *hostgroups[MAX_GROUPS];
@@ -312,6 +314,14 @@ main (int argc, char **argv)
 
 
         setLsbPtilePack(TRUE);
+    }
+
+    if (daemonParams[LSF_UNIT_FOR_LIMITS].paramValue != NULL) {
+
+        strToUpper_(daemonParams[LSF_UNIT_FOR_LIMITS].paramValue);
+
+        unitForLimits = setUnitForLimits(daemonParams[LSF_UNIT_FOR_LIMITS].paramValue);
+
     }
 
     daemon_doinit();

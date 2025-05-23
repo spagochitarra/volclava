@@ -190,6 +190,7 @@ char   *lsb_errmsg[] = {
 /*131*/  "Dependent arrays do not have the same size", /* catgets 231 */
 /*132*/  "Pending job threshold reached", /* catgets 232 */
 /*133*/  "Pending job slots threshold reached", /* catgets 233 */
+/*134*/  "Bad rlimit specification, valid value 0<= n < 2T with LSF_UNIT_FOR_LIMITS in lsf.conf",			   /* catgets 234 */
 
 /* when you add a new message here, remember two things: first do not
  * forget to add "," after the error message; second, add its catgets
