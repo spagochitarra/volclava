@@ -763,6 +763,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
 	submitReply->badReqIndx = 0;
 	submitReply->queue = "";
 	submitReply->badJobName = "";
+	submitReply->pendLimitReason = "";
 	submitReply->subTryInterval = DEF_SUB_TRY_INTERVAL;
 	return (-1);
     }
@@ -796,6 +797,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
     submitReply->queue = reply->queue;
     submitReply->badJobName = reply->badJobName;
     submitReply->subTryInterval = reply->subTryInterval;
+    submitReply->pendLimitReason = reply->pendLimitReason;
 
     if (lsberrno == LSBE_NO_ERROR) {
 	if (reply->jobId == 0)

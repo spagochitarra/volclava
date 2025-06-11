@@ -151,6 +151,7 @@ struct submitMbdReply {
     int     badReqIndx;
     int     subTryInterval;
     char    *badJobName;
+    char    *pendLimitReason;
 };
 
 struct modifyReq {                   

@@ -565,6 +565,7 @@ struct submitReply {
      char    *queue;
      LS_LONG_INT  badJobId;
      char    *badJobName;
+     char    *pendLimitReason;
      int     badReqIndx;
      int     subTryInterval;
 };

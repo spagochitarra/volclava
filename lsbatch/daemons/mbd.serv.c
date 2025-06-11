@@ -958,6 +958,7 @@ do_migReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     migReply.badReqIndx = 0;
     migReply.queue = "";
     migReply.badJobName = "";
+    migReply.pendLimitReason = "";
 
     if (!xdr_migReq(xdrs, &migReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1955,12 +1956,15 @@ initSubmit(int *first, struct submitReq *subReq,
         subReq->chkpntDir = (char *) my_malloc(MAXFILENAMELEN, fname);
         subReq->hostSpec = (char *) my_malloc(MAXHOSTNAMELEN, fname);
         submitReply->badJobName = (char *) my_malloc(MAX_CMD_DESC_LEN, fname);
+        submitReply->pendLimitReason = (char *) my_malloc(MAX_CMD_DESC_LEN, fname);
         *first = FALSE;
     } else {
         FREEUP(subReq->chkpntDir);
         FREEUP(submitReply->badJobName);
+        FREEUP(submitReply->pendLimitReason);
         subReq->chkpntDir = (char *) my_malloc(MAXFILENAMELEN, fname);
         submitReply->badJobName = (char *) my_malloc(MAX_CMD_DESC_LEN, fname);
+        submitReply->pendLimitReason = (char *) my_malloc(MAX_CMD_DESC_LEN, fname);
     }
 
 
@@ -1977,6 +1981,7 @@ initSubmit(int *first, struct submitReq *subReq,
     submitReply->subTryInterval = DEF_SUB_TRY_INTERVAL;
 
     strcpy (submitReply->badJobName, "");
+    strcpy (submitReply->pendLimitReason, "");
 
 }
 
