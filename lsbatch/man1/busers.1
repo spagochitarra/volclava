@@ -1,7 +1,7 @@
 .ds ]W %
 .ds ]L
 .nh
-.TH busers 1 "Lava Version 1.0 - Sept 2007"
+.TH busers 1 "Volclava Version 1.0 - June 2025"
 .br
 .SH NAME
 \fBbusers\fR - displays information about users and user groups
@@ -9,8 +9,9 @@
 .BR
 .PP
 .PP
-\fBbusers\fR\fB \fR[\fIuser_name \fR... | \fIuser_group\fR ... | \fBall\fR]\fB 
-\fR.PP
+\fBbusers\fR\fB \fR[\fB-w\fR]\fR\fB \fR[\fIuser_name \fR... | \fIuser_group\fR ... | \fBall\fR]\fB
+.BR
+.PP
 \fBbusers\fR\fB \fR[\fB-h\fR | \fB-V\fR]
 .SH DESCRIPTION
 .BR
@@ -30,6 +31,11 @@ command.
 Displays information about the specified users or user groups, or about 
 all users if you specify all.
 
+.TP
+\fB-w
+\fR
+.IP
+Prints pending job thresholds for users/usergroups, showing MPEND, PJOBS, and MPJOBS fields.
 
 .TP 
 \fB-h
