@@ -1,7 +1,7 @@
 .ds ]W %
 .ds ]L
 .nh
-.TH bjobs 1 "Lava Version 1.0 - Sept 2007"
+.TH bjobs 1 "Volclava Version 1.0 - June 2025"
 .br
 .SH NAME
 \fBbjobs\fR - displays information about Lava jobs
@@ -13,12 +13,14 @@
 [\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group\fR] 
 [\fB-N\fR \fIhost_name | \fR\fB-N\fR \fIhost_model | \fR\fB-N \fR\fICPU_factor\fR] [\fB-P\fR\fI project_name\fR] 
 [\fB-q\fR \fIqueue_name\fR] [\fB-u \fR\fIuser_name\fR | \fB-u\fR \fIuser_group\fR | \fB-u all\fR]\fB \fR\fIjob_ID ...
-\fR.PP
-\fBbjobs\fR [\fB-d\fR] [\fB-p\fR] [\fB-r\fR] [\fB-s\fR] [\fB-A\fR] [\fB-w\fR | \fB-l\fR] [\fB-J\fR \fIjob_name\fR] 
-[\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group\fR] 
-[\fB-N\fR \fIhost_name | \fR\fB-N\fR \fIhost_model | \fR\fB-N \fR\fICPU_factor\fR] [\fB-P\fR\fI project_name\fR] 
-[\fB-q\fR \fIqueue_name\fR] [\fB-u \fR\fIuser_name\fR | \fB-u\fR \fIuser_group\fR | \fB-u all\fR]\fB \fR\fIjob_ID ...
-\fR.PP
+.BR
+.PP
+\fBbjobs\fR [\fB-d\fR] [\fB-p\fR] [\fB-r\fR] [\fB-s\fR] [\fB-A\fR] [\fB-w\fR | \fB-l\fR] \fB \fR\fIjob_ID ...
+.BR
+.PP
+\fBbjobs \fR[\fB-o\fR \fIcustomized_fields\fR] [\fB-json\fR] \fB \fR\fIjob_ID ...
+.BR
+.PP
 \fBbjobs \fR[\fB-h\fR | \fB-V\fR]
 .SH DESCRIPTION
 .BR
@@ -200,6 +202,20 @@ system, and information about the configurations of these queues.
 .IP
 Only displays jobs that have been submitted by the specified users. The 
 keyword all specifies all users.
+
+
+.TP
+\fB-o customized_fields
+\fR
+.IP
+Sets the customized output fields with default delimiter of space character, such as: bjobs -o "jobid USER STAT".
+
+
+.TP
+\fB-json
+\fR
+.IP
+Displays the customized output in JSON format, and -json need be used with -o option, such as: bjobs -o "jobid" -json.
 
 
 .TP 

@@ -388,31 +388,36 @@ xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct LSFHeader *h
 {
     static char queueName[MAX_LSB_NAME_LEN];
     static char jobName[MAX_CMD_DESC_LEN];
+    static char pendLimitReason[MAX_CMD_DESC_LEN];
     int jobArrId, jobArrElemId;
 
     if (xdrs->x_op == XDR_DECODE) {
-	queueName[0] = '\0';
-	jobName[0] = '\0';
+        queueName[0] = '\0';
+        jobName[0] = '\0';
+        pendLimitReason[0] = '\0';
         reply->queue = queueName;
         reply->badJobName = jobName;
+        reply->pendLimitReason = pendLimitReason;
     }
 
     if (xdrs->x_op == XDR_ENCODE) {
-	jobId64To32(reply->jobId, &jobArrId, &jobArrElemId);
+        jobId64To32(reply->jobId, &jobArrId, &jobArrElemId);
     }
     if (!(xdr_int(xdrs,&(jobArrId)) &&
-	  xdr_int(xdrs,&(reply->badReqIndx)) &&
-	  xdr_int(xdrs,&(reply->subTryInterval)) &&
-	  xdr_string(xdrs, &reply->queue, MAX_LSB_NAME_LEN) &&
-	  xdr_string(xdrs, &reply->badJobName, MAX_CMD_DESC_LEN)))
-	return (FALSE);
+    xdr_int(xdrs,&(reply->badReqIndx)) &&
+    xdr_int(xdrs,&(reply->subTryInterval)) &&
+    xdr_string(xdrs, &reply->queue, MAX_LSB_NAME_LEN) &&
+    xdr_string(xdrs, &reply->pendLimitReason, MAX_CMD_DESC_LEN) &&
+    xdr_string(xdrs, &reply->badJobName, MAX_CMD_DESC_LEN))){
+        return (FALSE);
+    }
 
     if (!xdr_int(xdrs, &jobArrElemId)) {
         return (FALSE);
     }
 
     if (xdrs->x_op == XDR_DECODE) {
-	jobId32To64(&reply->jobId,jobArrId,jobArrElemId);
+        jobId32To64(&reply->jobId,jobArrId,jobArrElemId);
     }
     return(TRUE);
 }

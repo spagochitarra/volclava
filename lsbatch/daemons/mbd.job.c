@@ -58,7 +58,7 @@ static double        acumulateValue(double, double);
 static void          accumulateRU(struct jData *, struct statusReq *);
 static int           checkJobParams(struct jData *, struct submitReq *,
                                     struct submitMbdReply *, struct lsfAuth *);
-static int           checkJobPendLimit(struct jData *, struct lsfAuth *, int);
+static int           checkJobPendLimit(struct jData *, struct lsfAuth *, char *, int);
 static struct submitReq* saveOldParameters(struct jData *);
 static void              freeExecParams(struct jData *);
 static int mergeSubReq (struct submitReq *to, struct submitReq *old,
@@ -165,10 +165,13 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     struct hData *hData;
     struct hostInfo *hinfo;
     char hostType[MAXHOSTNAMELEN];
+    static char pendLimitReason[MAX_CMD_DESC_LEN];
 
     struct idxList *idxList;
     int    maxJLimit = 0;
     int    arraySize = 1;
+
+    pendLimitReason[0] = '\0';
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -280,7 +283,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         (idxList = parseJobArrayIndex(newjob->shared->jobBill.jobName,
                                       &returnErr, &maxJLimit)) == NULL) {
         arraySize = 1;
-        returnErr = checkJobPendLimit(newjob, auth, arraySize);
+        returnErr = checkJobPendLimit(newjob, auth, pendLimitReason, arraySize);
         if (returnErr == LSBE_NO_ERROR) {
             handleNewJob (newjob, JOB_NEW, LOG_IT);
         }
@@ -290,7 +293,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     }
     else {
         arraySize = (idxList->end - idxList->start)/idxList->step + 1;
-        returnErr = checkJobPendLimit(newjob, auth, arraySize);
+        returnErr = checkJobPendLimit(newjob, auth, pendLimitReason, arraySize);
         if (returnErr == LSBE_NO_ERROR) {
             handleNewJobArray(newjob, idxList, maxJLimit);
             freeIdxList(idxList);
@@ -317,6 +320,7 @@ error_cleanup:
     FREEUP(Reply->badJobName);
     freeIdxList(idxList);
     Reply->badJobName = safeSave(newjob->shared->jobBill.jobName);
+    strncpy(Reply->pendLimitReason, pendLimitReason, MAX_CMD_DESC_LEN);
     freeJData(newjob);
     return(returnErr);
 }
@@ -6091,7 +6095,7 @@ saveOldParameters (struct jData *jpbw)
 }
 
 static int
-checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
+checkJobPendLimit(struct jData *job, struct lsfAuth *auth, char *pendLimitReason, int jobArraySize) {
 
     static char fname[] = "checkJobPendLimit";
     struct uData *userData;
@@ -6122,6 +6126,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                  fname, auth->lsfUserName, userData->maxPendSlots, userData->numPEND, jobArraySize,
                                  job->shared->jobBill.numProcessors);
         }
+        sprintf(pendLimitReason, "User <%s>", auth->lsfUserName);
         return (LSBE_SLOTS_MAX_PEND);
     }
 
@@ -6132,6 +6137,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                  "jobArraySize <%d>.", fname, auth->lsfUserName, userData->maxPendJobs,
                                  userData->numPENDJobs, jobArraySize);
         }
+        sprintf(pendLimitReason, "User <%s>", auth->lsfUserName);
         return (LSBE_JOB_MAX_PEND);
     }
 
@@ -6142,6 +6148,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                  "total numPEND <%d> plus jobArraySize <%d>.",
                                  fname, auth->lsfUserName, maxPendJobs, totalNumPendJobs, jobArraySize);
         }
+        sprintf(pendLimitReason, "System");
         return (LSBE_JOB_MAX_PEND);
     }
 
@@ -6153,6 +6160,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                  fname, auth->lsfUserName, maxPendSlots, pendJobSlots, jobArraySize,
                                  job->shared->jobBill.numProcessors);
         }
+        sprintf(pendLimitReason, "System");
         return (LSBE_SLOTS_MAX_PEND);
     }
 
@@ -6168,6 +6176,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                      fname, auth->lsfUserName, ugp->user, ugp->maxPendSlots, ugp->numPEND,
                                      jobArraySize, job->shared->jobBill.numProcessors);
             }
+            sprintf(pendLimitReason, "Group <%s>", ugp->user);
             return (LSBE_SLOTS_MAX_PEND);
         }
 
@@ -6179,6 +6188,7 @@ checkJobPendLimit(struct jData *job, struct lsfAuth *auth, int jobArraySize) {
                                      fname, auth->lsfUserName, ugp->user, ugp->maxPendJobs,
                                      ugp->numPENDJobs, jobArraySize);
             }
+            sprintf(pendLimitReason, "Group <%s>", ugp->user);
             return (LSBE_JOB_MAX_PEND);
         }
     }
@@ -6205,6 +6215,7 @@ checkJobParams (struct jData *job, struct submitReq *subReq,
     if (Reply == NULL) {
         Reply = &replyTmp;
         Reply->badJobName = NULL;
+        Reply->pendLimitReason = NULL;
     }
 
     Reply->subTryInterval = subTryInterval;
@@ -9090,7 +9101,7 @@ static void initUserGroup (struct uData *uData)
     // reference from updUserData
     int numNew=0;
     int k=0;
-    struct uData **grpPtr = NULL;
+    static struct uData **grpPtr = NULL;
     struct uData *ugp;
 
     if (!(uData->flags & USER_INIT)) {

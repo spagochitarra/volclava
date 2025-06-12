@@ -876,7 +876,7 @@ CopyCommand(char **from, int len)
 void
 prtErrMsg (struct submit *req, struct submitReply *reply)
 {
-    static char tmpBuf[128];
+    static char tmpBuf[MAX_CMD_DESC_LEN];
     static char rNames [10][12] = {
                               "CPULIMIT",
                               "FILELIMIT",
@@ -932,8 +932,12 @@ prtErrMsg (struct submit *req, struct submitReply *reply)
         break;
     case LSBE_JOB_MAX_PEND:
     case LSBE_SLOTS_MAX_PEND:
-        sprintf(tmpBuf, "User <%s>", getenv("USER"));
-        sub_perror (tmpBuf);
+        if (strlen(reply->pendLimitReason) == 0) {
+            sprintf(tmpBuf, "User <%s>", getenv("USER"));
+            sub_perror (tmpBuf);
+        } else {
+            sub_perror (reply->pendLimitReason);
+        }
         break;
     default:
 	sub_perror(NULL);
