@@ -37,9 +37,19 @@ static bool_t xdr_lsbShareResourceInstance (XDR *xdrs,
 					    struct lsbSharedResourceInstance *,
 					    struct LSFHeader *);
 
+static int xdrsize_shareAcctInfoEnt(struct shareAcctInfoEnt *, int *);
+
+static bool_t xdr_shareAcctInfoEnt(struct shareAcctInfoEnt *,
+                                   XDR *,
+                                   struct LSFHeader *);
+
+
 int  lsbSharedResConfigured_ = FALSE;
 
 extern bool_t xdr_array_string(XDR *, char **, int, int);
+extern int getXdrStrlen(char *);
+extern int freeShareAcctInfoEnt(struct shareAcctInfoEnt *);
+
 bool_t
 xdr_submitReq (XDR *xdrs, struct submitReq *submitReq, struct LSFHeader *hdr)
 {
@@ -498,6 +508,13 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
         return (FALSE);
     }
 
+    if (!(xdr_float(xdrs, &paramInfo->runTimeFactor) &&
+          xdr_float(xdrs, &paramInfo->cpuTimeFactor) &&
+          xdr_float(xdrs, &paramInfo->runJobFactor) &&
+          xdr_float(xdrs, &paramInfo->histHours))) {
+        return (FALSE);
+    }
+
     return(TRUE);
 }
 
@@ -819,6 +836,10 @@ xdr_jobInfoReply (XDR *xdrs, struct jobInfoReply *jobInfoReply,
 	jobId32To64(&jobInfoReply->jobId,jobArrId,jobArrElemId);
     }
 
+    if (!xdr_var_string(xdrs, &jobInfoReply->chargedSAAP)) {
+        return (FALSE);
+    }
+
     return(TRUE);
 
 }
@@ -882,10 +903,15 @@ xdr_queueInfoReply (XDR *xdrs, struct queueInfoReply *qInfoReply,
 	    FREEUP (qInfo[i].jobStarter);
 	    FREEUP (qInfo[i].chkpntDir);
 
-
+;
             FREEUP (qInfo[i].suspendActCmd);
             FREEUP (qInfo[i].resumeActCmd);
             FREEUP (qInfo[i].terminateActCmd);
+            FREEUP (qInfo[i].userShares);
+            if (qInfo[i].shareAcctTree) {
+                freeShareAcctInfoEnt(qInfo[i].shareAcctTree);
+                FREEUP(qInfo[i].shareAcctTree);
+            }
         }
 
 	qInfoReply->queues = qInfo;
@@ -1027,6 +1053,32 @@ xdr_queueInfoEnt (XDR *xdrs, struct queueInfoEnt *qInfo,
     if ( !( xdr_int (xdrs, &qInfo->minProcLimit)
         && xdr_int (xdrs, &qInfo->defProcLimit ) ) ) {
         return FALSE;
+    }
+
+    if (!(xdr_var_string(xdrs, &qInfo->userShares))) {
+        return FALSE;
+    }
+
+    if (xdrs->x_op == XDR_DECODE) {
+        if (qInfo->userShares && strlen(qInfo->userShares) > 0) {
+            qInfo->shareAcctTree = (struct shareAcctInfoEnt *)calloc(1, sizeof(struct shareAcctInfoEnt));
+            if (!qInfo->shareAcctTree) {
+                return FALSE;
+            }
+        }
+    }
+
+    if (!(xdr_float(xdrs, &qInfo->fsFactors.cpuTimeFactor) && 
+          xdr_float(xdrs, &qInfo->fsFactors.runTimeFactor) &&
+          xdr_float(xdrs, &qInfo->fsFactors.runJobFactor) &&
+          xdr_float(xdrs, &qInfo->fsFactors.histHours))) {
+        return FALSE;
+    }    
+ 
+    if (qInfo->shareAcctTree) {
+        if (!traverseSATree(qInfo->shareAcctTree, TRAVERSE_FS_SACCTXDR, xdr_shareAcctInfoEnt, xdrs, hdr)) {
+            return FALSE;
+        }   
     }
 
     return(TRUE);
@@ -1410,54 +1462,56 @@ bool_t
 xdr_groupInfoReply (XDR *xdrs, struct groupInfoReply *groupInfoReply,
 		    struct LSFHeader *hdr)
 {
-    int i;
+    int i, j;
 
     if (xdrs->x_op == XDR_FREE) {
-	for (i = 0; i < groupInfoReply->numGroups; i++) {
-	    FREEUP(groupInfoReply->groups[i].group);
-	    FREEUP(groupInfoReply->groups[i].memberList);
-	}
-	FREEUP(groupInfoReply->groups);
-	groupInfoReply->numGroups = 0;
-	return(TRUE);
+        for (i = 0; i < groupInfoReply->numGroups; i++) {
+            FREEUP(groupInfoReply->groups[i].group);
+            FREEUP(groupInfoReply->groups[i].memberList);
+            for (j = 0; j < groupInfoReply->groups[i].numUserShares; j++) {
+                FREEUP(groupInfoReply->groups[i].userShares[j].name);
+            }
+            FREEUP(groupInfoReply->groups->userShares);
+        }
+        FREEUP(groupInfoReply->groups);
+        groupInfoReply->numGroups = 0;
+        return(TRUE);
     }
 
 
     if (xdrs->x_op == XDR_DECODE) {
-	groupInfoReply->numGroups = 0;
-	groupInfoReply->groups = NULL;
+        groupInfoReply->numGroups = 0;
+        groupInfoReply->groups = NULL;
     }
 
 
-    if (!xdr_int(xdrs, &(groupInfoReply->numGroups)))
-	return (FALSE);
+    if (!xdr_int(xdrs, &(groupInfoReply->numGroups))) {
+        return (FALSE);
+    }
 
 
     if (xdrs->x_op == XDR_DECODE &&  groupInfoReply->numGroups != 0) {
-
-	groupInfoReply->groups =
-	    (struct groupInfoEnt *)calloc(groupInfoReply->numGroups,
-					 sizeof(struct groupInfoEnt));
-	if (groupInfoReply->groups == NULL)
-	    return (FALSE);
-
+        groupInfoReply->groups = (struct groupInfoEnt *)calloc(groupInfoReply->numGroups, sizeof(struct groupInfoEnt));
+        if (groupInfoReply->groups == NULL) {
+            return (FALSE);
+        }
     }
 
 
     for (i = 0; i < groupInfoReply->numGroups; i++) {
-
-	if (!xdr_arrayElement(xdrs,
-			      (char *)&(groupInfoReply->groups[i]),
-			      hdr,
-			      xdr_groupInfoEnt))
-	    return (FALSE);
+        if (!xdr_arrayElement(xdrs,
+                              (char *)&(groupInfoReply->groups[i]),
+                              hdr,
+                              xdr_groupInfoEnt)) {
+            return (FALSE);
+        }
     }
 
-    if (xdrs->x_op == XDR_FREE)
-	FREEUP(groupInfoReply->groups);
+    if (xdrs->x_op == XDR_FREE) {
+        FREEUP(groupInfoReply->groups);
+    }
 
     return (TRUE);
-
 }
 
 
@@ -1465,20 +1519,39 @@ bool_t
 xdr_groupInfoEnt (XDR *xdrs, struct groupInfoEnt *gInfo,
 		  struct LSFHeader *hdr)
 {
-
+    int i;
     if (xdrs->x_op == XDR_DECODE) {
-	gInfo->group = NULL;
-	gInfo->memberList = NULL;
+        gInfo->group = NULL;
+        gInfo->memberList = NULL;
+        gInfo->numUserShares = 0;
+        gInfo->userShares = NULL;
     }
 
 
-    if (!xdr_var_string(xdrs, &(gInfo->group)) ||
-	!xdr_var_string(xdrs, &(gInfo->memberList)))
-	return(FALSE);
+    if (!xdr_var_string(xdrs, &(gInfo->group))
+        || !xdr_var_string(xdrs, &(gInfo->memberList))
+        || !xdr_int(xdrs, &(gInfo->numUserShares))) {
+        return(FALSE);
+    }
+
+    if (xdrs->x_op == XDR_DECODE) {
+        gInfo->userShares = (struct userShares *)calloc(gInfo->numUserShares, sizeof(struct userShares));
+        if (! gInfo->userShares) {
+            gInfo->numUserShares = 0;
+            return(FALSE);
+        }
+    }
+
+    for (i = 0; i < gInfo->numUserShares; i++) {
+        if (!xdr_var_string(xdrs, &(gInfo->userShares[i].name)) 
+            || !xdr_int(xdrs, &(gInfo->userShares[i].share))) {
+            return(FALSE);
+        }
+    }
 
     if (xdrs->x_op == XDR_FREE) {
-	FREEUP(gInfo->group);
-	FREEUP(gInfo->memberList);
+        FREEUP(gInfo->group);
+        FREEUP(gInfo->memberList);
     }
 
     return (TRUE);
@@ -1860,6 +1933,79 @@ xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, struct LSFHeader *hdr)
     }
 
     return(TRUE);
+}
 
+static int xdrsize_shareAcctInfoEnt(struct shareAcctInfoEnt *node, int *size) {
+    *size += ALIGNWORD_(sizeof(struct shareAcctInfoEnt));
+    *size += getXdrStrlen(node->name);
+    return 1;
+}
+
+static bool_t xdr_shareAcctInfoEnt(struct shareAcctInfoEnt *sa, XDR *xdrs,
+                                   struct LSFHeader *hdr) {
+    
+    if (!(xdr_var_string(xdrs, &sa->name)))
+        return (FALSE);
+
+    if (!(xdr_int(xdrs, &sa->share) && 
+          xdr_float(xdrs, &sa->priority) &&
+          xdr_int(xdrs, &sa->numStartJobs) &&
+          xdr_int(xdrs, &sa->nChildShareAcct) &&
+          xdr_float(xdrs, &sa->cpuTime) &&
+          xdr_float(xdrs, &sa->runTime))) {
+        return (FALSE);
+    }
+
+    if (xdrs->x_op == XDR_DECODE && sa->nChildShareAcct > 0) {
+        sa->childShareAccts = (struct shareAcctInfoEnt *)calloc(sa->nChildShareAcct, sizeof(struct shareAcctInfoEnt));
+        if (!sa->childShareAccts) {
+            return (FALSE);
+        }
+    }
+    return TRUE;
+}
+
+int
+xdrsize_QueueInfoReply(struct queueInfoReply * qInfoReply)
+{
+    int len;
+    int i;
+    int shareLen;
+
+    len = 0;
+
+    for (i = 0; i < qInfoReply->numQueues; i++) {
+        shareLen = 0;
+        len += getXdrStrlen(qInfoReply->queues[i].description)
+            + getXdrStrlen(qInfoReply->queues[i].windows)
+            + getXdrStrlen(qInfoReply->queues[i].userList)
+            + getXdrStrlen(qInfoReply->queues[i].hostList)
+            + getXdrStrlen(qInfoReply->queues[i].defaultHostSpec)
+            + getXdrStrlen(qInfoReply->queues[i].hostSpec)
+            + getXdrStrlen(qInfoReply->queues[i].windowsD)
+            + getXdrStrlen(qInfoReply->queues[i].admins)
+            + getXdrStrlen(qInfoReply->queues[i].preCmd)
+            + getXdrStrlen(qInfoReply->queues[i].postCmd)
+            + getXdrStrlen(qInfoReply->queues[i].prepostUsername)
+            + getXdrStrlen(qInfoReply->queues[i].requeueEValues)
+            + getXdrStrlen(qInfoReply->queues[i].resReq)
+            + getXdrStrlen(qInfoReply->queues[i].resumeCond)
+            + getXdrStrlen(qInfoReply->queues[i].stopCond)
+            + getXdrStrlen(qInfoReply->queues[i].jobStarter)
+            + getXdrStrlen(qInfoReply->queues[i].suspendActCmd)
+            + getXdrStrlen(qInfoReply->queues[i].resumeActCmd)
+            + getXdrStrlen(qInfoReply->queues[i].terminateActCmd)
+            + getXdrStrlen(qInfoReply->queues[i].chkpntDir)
+            + getXdrStrlen(qInfoReply->queues[i].userShares);
+        if (qInfoReply->queues[i].shareAcctTree) {
+            traverseSATree(qInfoReply->queues[i].shareAcctTree, TRAVERSE_FS_SIZE, xdrsize_shareAcctInfoEnt, &shareLen);
+            len += shareLen;
+        }
+    }
+    len += ALIGNWORD_(sizeof(struct queueInfoReply)
+                      + qInfoReply->numQueues * (sizeof(struct queueInfoEnt)+ MAX_LSB_NAME_LEN + qInfoReply->nIdx*2*sizeof(float))
+                      + qInfoReply->numQueues * NET_INTSIZE_);
+
+    return len;
 }
 

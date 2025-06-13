@@ -24,7 +24,13 @@
 void load2Str();
 static void prtQueuesLong (int, struct queueInfoEnt *);
 static void prtQueuesShort (int, struct queueInfoEnt *);
+static void printShareAcctTree(struct shareAcctInfoEnt *, char *);
+static void prtShareAcctHeader();
+static void prtShareAcct(struct shareAcctInfoEnt *);
+
 static char wflag = FALSE;
+static char lflag = FALSE;
+static char rflag = FALSE;
 extern int terminateWhen_(int *, char *);
 
 #define QUEUE_NAME_LENGTH    15
@@ -42,13 +48,19 @@ extern int terminateWhen_(int *, char *);
 #define QUEUE_USUSP_LENGTH   5
 #define QUEUE_NICE_LENGTH    4
 #define QUEUE_RSV_LENGTH     4
+#define QUEUE_FS_NAME        14
+#define QUEUE_FS_SHARES      7
+#define QUEUE_FS_PRIO        9
+#define QUEUE_FS_STARTED     8
+#define QUEUE_FS_CPUTIME     9
+#define QUEUE_FS_RUNTIME     8
 
 static char fomt[200];
 
 void
 usage (char *cmd)
 {
-     fprintf(stderr, ": %s [-h] [-V] [-w | -l] [-m host_name | -m cluster_name]\n", cmd);
+     fprintf(stderr, ": %s [-h] [-V] [-w | -l | -r] [-m host_name | -m cluster_name]\n", cmd);
 
     if (lsbMode_ & LSB_MODE_BATCH)
         fprintf(stderr, " [-u user_name]");
@@ -62,7 +74,6 @@ main(int argc, char **argv)
     int numQueues;
     char **queueNames=NULL, **queues = NULL;
     struct queueInfoEnt *queueInfo;
-    char lflag = FALSE;
     int cc, defaultQ = FALSE;
     char *host = NULL, *user = NULL;
     int rc;
@@ -76,16 +87,16 @@ main(int argc, char **argv)
         exit(-1);
     }
 
-    while ((cc = getopt(argc, argv, "Vhlwm:u:")) != EOF) {
+    while ((cc = getopt(argc, argv, "Vhlwrm:u:")) != EOF) {
         switch (cc) {
             case 'l':
                 lflag = TRUE;
-                if (wflag)
+                if (wflag || rflag)
                     usage(argv[0]);
                 break;
             case 'w':
                 wflag = TRUE;
-                if (lflag)
+                if (lflag || rflag)
                     usage(argv[0]);
                 break;
             case 'm':
@@ -97,6 +108,11 @@ main(int argc, char **argv)
                 if (user != NULL || *optarg == '\0')
                     usage(argv[0]);
                 user = optarg;
+                break;
+            case 'r':
+                rflag = TRUE;
+                if (lflag || wflag)
+                    usage(argv[0]);
                 break;
             case 'V':
                 fputs(_LS_VERSION_, stderr);
@@ -144,7 +160,7 @@ main(int argc, char **argv)
         return -1;
     }
 
-    if (lflag)
+    if (lflag || rflag)
         prtQueuesLong(numQueues, queueInfo);
     else
         prtQueuesShort(numQueues, queueInfo);
@@ -349,7 +365,8 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
             || (qp->qAttrib & Q_ATTRIB_BACKFILL)
             || (qp->qAttrib & Q_ATTRIB_IGNORE_DEADLINE)
             || (qp->qAttrib & Q_ATTRIB_ONLY_INTERACTIVE)
-            || (qp->qAttrib & Q_ATTRIB_NO_INTERACTIVE)) {
+            || (qp->qAttrib & Q_ATTRIB_NO_INTERACTIVE)
+            || (qp->qAttrib & Q_ATTRIB_FS)) {
 
             printf("\n%s:", _i18n_msg_get(ls_catd,NL_SETN,1219,
                                           "SCHEDULING POLICIES")); /* catgets  1219  */
@@ -367,8 +384,47 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
                                               "NO_INTERACTIVE"))); /* catgets  1226  */
             if (qp->qAttrib & Q_ATTRIB_ONLY_INTERACTIVE)
                 printf("  %s", (_i18n_msg_get(ls_catd,NL_SETN,1227,
-                                              "ONLY_INTERACTIVE")));                   /* catgets  1227  */
+                                              "ONLY_INTERACTIVE")));  /* catgets  1227  */
+            if (qp->qAttrib & Q_ATTRIB_FS) {
+                printf("  %s", (_i18n_msg_get(ls_catd,NL_SETN,1227,
+                                              "FAIRSAHRE")));                 
+            }
             printf("\n");
+        }
+
+        if (qp->qAttrib & Q_ATTRIB_FS) {
+            char path[MAXPATHLEN] = {0};
+            int  hasFactor = 0;
+            printf("USER_SHARES:  %s", qp->userShares);
+            printf("\n");
+            printShareAcctTree(qp->shareAcctTree, path);
+
+            if (qp->fsFactors.runTimeFactor >= 0) {
+                printf("\n%s: %f",
+                        (_i18n_msg_get(ls_catd,NL_SETN,1233, "RUN_TIME_FACTOR")), qp->fsFactors.runTimeFactor); /* catgets  1233 */
+                hasFactor = 1;
+            }
+
+            if (qp->fsFactors.cpuTimeFactor >= 0) {
+                printf("\n%s: %f",
+                        (_i18n_msg_get(ls_catd,NL_SETN,1234, "CPU_TIME_FACTOR")), qp->fsFactors.runTimeFactor); /* catgets  1234 */
+                hasFactor = 1;
+            }
+
+            if (qp->fsFactors.runJobFactor >= 0) {
+                printf("\n%s: %f",
+                        (_i18n_msg_get(ls_catd,NL_SETN,1235, "RUN_JOB_FACTOR")), qp->fsFactors.runJobFactor); /* catgets  1235 */
+                hasFactor = 1;
+            }
+
+            if (qp->fsFactors.histHours >= 0) {
+                printf("\n%s: %f",
+                       (_i18n_msg_get(ls_catd,NL_SETN,1236, "HIST_HOURS")), qp->fsFactors.histHours); /* catgets  1236 */  
+                hasFactor = 1;
+            }
+            if (hasFactor) {
+                printf("\n");
+            }
         }
 
         if (strcmp (qp->defaultHostSpec, " ") !=  0)
@@ -497,8 +553,6 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
         }
     }
 
-    printf("\n");
-
 }
 static void
 prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
@@ -609,3 +663,75 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
                (qp->numSSUSP + qp->numUSUSP) );
     }
 }
+
+static 
+void printShareAcctTree(struct shareAcctInfoEnt *sAcctInfo, char * path) {
+    int i = 0;
+    int pos = strlen(path);
+
+    if (!sAcctInfo && sAcctInfo->nChildShareAcct <= 0) {
+        return;
+    }
+
+    /*Children is only 'default', we don't need print it because we only print shareAcct which had active jobs*/
+    if (sAcctInfo->nChildShareAcct == 1 && 
+        strcmp(sAcctInfo->childShareAccts[0].name, "default") == 0) {
+        return;
+    }
+
+    snprintf(path+pos, MAXPATHLEN - pos, "%s/", sAcctInfo->name);
+    printf("\nSHARE_INFO_FOR: %s", path);
+    printf("\n");
+    prtShareAcctHeader();
+    printf("\n");
+    for (i = 0; i < sAcctInfo->nChildShareAcct; i++ ) {
+        prtShareAcct(&(sAcctInfo->childShareAccts[i]));
+    }
+
+    if (!rflag) {
+        return;
+    }
+
+    pos = strlen(path);
+    for (i = 0; i < sAcctInfo->nChildShareAcct; i++ ) {
+        if (sAcctInfo->childShareAccts[i].nChildShareAcct > 0) {
+            printShareAcctTree(&(sAcctInfo->childShareAccts[i]), path);
+        }
+        path[pos] = '\0';
+    }
+
+    return;
+} /*printShareAcctTree*/
+
+static void prtShareAcctHeader() {
+    prtWord(QUEUE_FS_NAME, I18N_USER_GROUP, 0);
+    prtWord(QUEUE_FS_SHARES, I18N_SHARES, -1);
+    prtWord(QUEUE_FS_PRIO, I18N_PRIORITY, -1);
+    prtWord(QUEUE_FS_STARTED, I18N_STARTED, -1);
+    prtWord(QUEUE_FS_CPUTIME, I18N_CPU_TIME, -1);
+    prtWord(QUEUE_FS_RUNTIME, I18N_RUN_TIME, -1);
+    return;
+} /*prtShareAcctHeader*/
+
+static void
+prtSAcctName(int len, const char *word)
+{
+    char fomt[200];
+
+       sprintf(fomt, " %%-%ds ",len-1);
+       printf(fomt, word);
+}
+
+static void prtShareAcct(struct shareAcctInfoEnt *sAcctInfo) {
+    if (strcmp(sAcctInfo->name, "default") == 0) {
+        return;
+    }
+    prtSAcctName(QUEUE_FS_NAME, sAcctInfo->name);
+    prtWord(QUEUE_FS_SHARES, prtValue(QUEUE_FS_SHARES, sAcctInfo->share), -1);
+    prtWord(QUEUE_FS_PRIO, prtFloat(QUEUE_FS_PRIO, 3, sAcctInfo->priority), -1);
+    prtWord(QUEUE_FS_STARTED, prtValue(QUEUE_FS_STARTED, sAcctInfo->numStartJobs), -1);
+    prtWord(QUEUE_FS_CPUTIME, prtFloat(QUEUE_FS_CPUTIME, 1, sAcctInfo->cpuTime), -1);
+    prtWord(QUEUE_FS_RUNTIME, prtValue(QUEUE_FS_RUNTIME, (int)sAcctInfo->runTime), -1);
+    printf("\n");
+    return;
+} /*prtShareAcctHeader*/

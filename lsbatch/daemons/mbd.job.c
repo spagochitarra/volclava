@@ -18,6 +18,8 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
+
 #define NL_SETN         10
 
 #define SUSP_CAN_PREEMPT_FOR_RSRC(s) !((s)->jStatus & JOB_STAT_USUSP)
@@ -425,6 +427,8 @@ handleNewJob(struct jData *jpbw, int job, int eventTime)
 
     if (job == JOB_NEW && eventTime == LOG_IT) {
         log_newjob(jpbw);
+        /*If job is submitted to fairshare tree, we need udpate user for default shareAcct*/
+        updAliveUserInFSTree(jpbw->qPtr, jpbw->userName);  
     }
 
     if (job == JOB_REPLAY) {
@@ -443,8 +447,8 @@ handleNewJob(struct jData *jpbw, int job, int eventTime)
         jpbw->newReason = PEND_USER_STOP;
         jStatusChange(jpbw, JOB_STAT_PSUSP, -1, __func__);
     }
-
 }
+
 int
 chkAskedHosts(int inNumAskedHosts, char **inAskedHosts, int numProcessors,
               int *outNumAskedHosts, struct askedHost **outAskedHosts,
@@ -760,13 +764,16 @@ acceptJob(struct qData *qp,
             return LSBE_PROC_NUM;
     }
 
+    if (qp->qAttrib & Q_ATTRIB_FS && getSAcctForJob(qp->policy, jp, 0) == NULL) {
+        return (LSBE_QUEUE_USE);
+    }
+
     if ((jp->shared->jobBill.options & SUB_INTERACTIVE)
         && (qp->qAttrib & Q_ATTRIB_NO_INTERACTIVE))
         return (LSBE_NO_INTERACTIVE);
     if (!(jp->shared->jobBill.options & SUB_INTERACTIVE)
         && (qp->qAttrib & Q_ATTRIB_ONLY_INTERACTIVE))
         return (LSBE_ONLY_INTERACTIVE);
-
 
     if (auth->uid != 0  && !isAuthManager(auth)
         && !requestByClusterAdmin( )
@@ -2537,6 +2544,7 @@ statusJob(struct statusReq *statusReq, struct hostent *hp, int *schedule)
     char              *host;
     int               diffSTime;
     int               diffUTime;
+    int               diffTime;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -2604,10 +2612,20 @@ statusJob(struct statusReq *statusReq, struct hostent *hp, int *schedule)
     else
         diffUTime = statusReq->runRusage.utime - jpbw->runRusage.utime;
 
+    /*update cpuTime for fairshare account*/
+    diffTime = diffSTime+diffUTime;
+    if (jpbw->sa && diffTime > 0) {
+        SACCT_CPUTIME_UPDATE(diffTime, jpbw->sa, fname);
+        if (logclass & LC_FAIR) {
+            ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> cputime <%d> for job <%s>",
+                    fname, jpbw->sa->path,
+                    diffTime,
+                    lsb_jobid2str(jpbw->jobId));
+        }
+        updSAcctPriorityByPath(jpbw->sa);
+    }
 
     jpbw->jRusageUpdateTime = now;
-
-
 
     copyJUsage(&(jpbw->runRusage), &(statusReq->runRusage));
 
@@ -3175,9 +3193,6 @@ terminatePendingEvent(struct jData *jpbw)
     return (FALSE);
 }
 
-
-
-
 int
 rusageJob (struct statusReq *statusReq, struct hostent *hp)
 {
@@ -3186,6 +3201,7 @@ rusageJob (struct statusReq *statusReq, struct hostent *hp)
     struct hData      *hData;
     int               diffSTime;
     int               diffUTime;
+    int               diffTime;
     bool_t            significantChange = FALSE;
 
     if (logclass & (LC_TRACE | LC_SIGNAL))
@@ -3217,6 +3233,18 @@ rusageJob (struct statusReq *statusReq, struct hostent *hp)
     else
         diffUTime = statusReq->runRusage.utime - jpbw->runRusage.utime;
 
+    /*update cpuTime for fairshare account*/
+    diffTime = diffSTime+diffUTime;
+    if (jpbw->sa && diffTime > 0) {
+        SACCT_CPUTIME_UPDATE(diffTime, jpbw->sa, fname);
+        if (logclass & LC_FAIR) {
+            ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> cputime <%d> for job <%s>",
+                    fname, jpbw->sa->path,
+                    diffTime,
+                    lsb_jobid2str(jpbw->jobId));
+        }
+        updSAcctPriorityByPath(jpbw->sa);
+    }
 
     jpbw->jRusageUpdateTime = now;
 
@@ -3313,20 +3341,19 @@ jStatusChange(struct jData *jData,
                 breakCallback(jData, IS_PEND(oldStatus));
         }
 
-        if (eventTime == LOG_IT)
+        if (eventTime == LOG_IT) {
             log_newstatus(jData);
+        }
         if (jData->runCount != INFINIT_INT)
             jData->runCount = MAX(0, jData->runCount-1);
 
-        handleFinishJob(jData, oldStatus, eventTime);
+        handleFinishJob(jData, oldStatus, eventTime);   
 
     } else if ((newStatus & JOB_STAT_PEND) && IS_START (oldStatus)) {
-
-        if (eventTime == LOG_IT)
-            log_newstatus(jData);
-
         if (eventTime == LOG_IT) {
+            log_newstatus(jData);
             jobRequeueTimeUpdate(jData, now);
+            detachedJobFromFSTree(jData, "jStatusChange()/job got pended");
         } else {
             jobRequeueTimeUpdate(jData, eventTime);
         }
@@ -3378,7 +3405,7 @@ jStatusChange(struct jData *jData,
     if (mSchedStage != M_STAGE_REPLAY) {
         updCounters (jData, oldStatus, eventTime);
     } else {
-
+        /*mbatchd is replaying */
         if (eventTime == LOG_IT) {
             updCounters (jData, oldStatus, eventTime);
         } else if (oldStatus & JOB_STAT_RUN
@@ -3394,6 +3421,7 @@ jStatusChange(struct jData *jData,
             jData->numHostPtr = 0;
             inPendJobList(jData, PJL, 0);
         }
+
     }
 
     if (freeExec == TRUE) {
@@ -4103,6 +4131,11 @@ switchAJob (struct jobSwitchReq *switchReq,
     updSwitchJob (job, qfp, qtp, job->shared->jobBill.maxNumProcessors);
 
     if (qfp != qtp) {
+        /*Update for fairshare policy*/
+        if (mSchedStage != M_STAGE_REPLAY) {
+            updJobSAcctForSwitch(job, qfp, qtp);
+        }
+
         if (auth != NULL)
             log_switchjob (switchReq, auth->uid, auth->lsfUserName);
         else
@@ -4579,20 +4612,28 @@ inPendJobList (struct jData *job, int listno, time_t requeueTime)
 
             if (!jobsOnSameSegment(job, jp, jDataList[listno])) {
 
-
-
-
-                if ((job->shared->jobBill.submitTime
-                     > jp->shared->jobBill.submitTime)
-                    && lastJob == NULL) {
-                    lastJob = jp;
-                } else if ((job->shared->jobBill.submitTime
-                            == jp->shared->jobBill.submitTime)
-                           && lastJob == NULL) {
-                    if (job->jobId == -1 || jp->jobId == -1) {
+                if (job->qPtr->qAttrib & Q_ATTRIB_FS || jp->qPtr->qAttrib & Q_ATTRIB_FS) {
+                    /*When a FS queue has the same priority with others, who is in the front of lsb.queue, 
+                     *whose jobs are in the front of jobList.
+                     */
+                    if (job->qPtr->posId > jp->qPtr->posId) {
+                        break;
+                    } else {
+                        continue;
+                    }
+                } else {
+                    if ((job->shared->jobBill.submitTime
+                        > jp->shared->jobBill.submitTime)
+                        && lastJob == NULL) {
                         lastJob = jp;
-                    } else if (job->jobId > jp->jobId) {
-                        lastJob = jp;
+                    } else if ((job->shared->jobBill.submitTime
+                                == jp->shared->jobBill.submitTime)
+                                && lastJob == NULL) {
+                        if (job->jobId == -1 || jp->jobId == -1) {
+                            lastJob = jp;
+                        } else if (job->jobId > jp->jobId) {
+                            lastJob = jp;
+                        }
                     }
                 }
 
@@ -5862,6 +5903,11 @@ handleJParameters (struct jData *jpbw, struct jData *job, struct submitReq *modR
         }
         oldMaxCpus = jpbw->shared->jobBill.maxNumProcessors;
 
+        if ((mSchedStage != M_STAGE_REPLAY) && 
+            IS_PEND (jpbw->jStatus) &&
+            (jpbw->qPtr != job->qPtr)) {
+            updAliveUserInFSTree(job->qPtr, jpbw->userName);
+        }
 
         if (  ! alreadySetNewSub ) {
 
@@ -7232,6 +7278,7 @@ getZombieJob (LS_LONG_INT jobId)
 void
 accumRunTime (struct jData *jData, int newStatus, time_t eventTime)
 {
+    static char fname[] = "accumRunTime()";
     int             diffTime = 0;
     time_t          currentTime;
 
@@ -7253,6 +7300,24 @@ accumRunTime (struct jData *jData, int newStatus, time_t eventTime)
         jData->runTime += diffTime;
     }
     jData->updStateTime = currentTime;
+
+    /*update related shareAcct runtime statictis*/
+    if (jData->sa && diffTime != 0) {
+        SACCT_RUNTIME_UPDATE(diffTime, jData->sa, fname);
+
+        /*In replacing events time, after we update shareAcct all statistics for job, 
+         *then we update shareAcct priority and order in one time.
+         */
+        if (mSchedStage != M_STAGE_REPLAY) {
+            updSAcctPriorityByPath(jData->sa);
+        }
+        if (logclass & LC_FAIR) {
+            ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> runtime <%ds> for job <%s>",
+                    fname, jData->sa->path,
+                    diffTime,
+                    lsb_jobid2str(jData->jobId));
+        }
+    }
 
     return;
 
@@ -7966,7 +8031,7 @@ shouldResumeByRes (struct jData *jp)
     int i, j, returnCode = RESUME_JOB;
     struct  resVal *resValPtr;
     float **loads;
-    struct hTab  exHostTab;
+    int *hBitMaps = NULL;
     hEnt  *ent = NULL;
 
     if (logclass & (LC_SCHED | LC_EXEC))
@@ -8032,15 +8097,16 @@ shouldResumeByRes (struct jData *jp)
     } ENDFORALL_PRMPT_RSRCS;
 
     /*exam whether resources is enrough to resume the job*/
-    h_initTab_(&exHostTab, 11);
+    hBitMaps = (int *)my_calloc(GET_INTNUM(numofhosts()), sizeof(int), fname);
     for (i = 0; i < jp->numHostPtr && returnCode != CANNOT_RESUME; i++) {
+        int isSet;
 
-        ent = h_getEnt_(&exHostTab, jp->hPtr[i]->host);
-        if (ent) {
+        TEST_BIT(jp->hPtr[i]->hostId, hBitMaps, isSet);
+        if (isSet) {
             /*The host has been checked, we don't need validate load/resource again*/
             continue;
         } else {
-            h_addEnt_(&exHostTab, jp->hPtr[i]->host, NULL);
+            SET_BIT(jp->hPtr[i]->hostId, hBitMaps);
         }
     
         for (j = 0; j < allLsInfo->numIndx; j++) {
@@ -8065,7 +8131,7 @@ shouldResumeByRes (struct jData *jp)
             }
         }
     }
-    h_delTab_(&exHostTab);
+    FREEUP(hBitMaps);
 
     /*recover the value*/
     for (i = 0; i < jp->numHostPtr; i++) {
@@ -9130,6 +9196,8 @@ static void initUserGroup (struct uData *uData)
         }
         uData->numGrpPtr = numNew;
         uData->flags |= USER_INIT;
+
+        FREEUP(grpPtr);
     }
 
 }

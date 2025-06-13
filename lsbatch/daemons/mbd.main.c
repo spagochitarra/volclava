@@ -18,6 +18,7 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
 
 #define MBD_THREAD_MIN_STACKSIZE  512
 #define POLL_INTERVAL MAX(msleeptime/10, 1)
@@ -79,6 +80,11 @@ int    maxAcctArchiveNum = -1;
 int    acctArchiveInDays = -1;
 int    acctArchiveInSize = -1;
 int    resourcePerTask = 0;
+float  cpuTimeFactor = DEF_CPU_TIME_FACTOR;
+float  runTimeFactor = DEF_RUN_TIME_FACTOR;
+float  runJobFactor = DEF_RUN_JOB_FACTOR;
+float  histHours = DEF_HIST_HOURS;
+float  clsDecay = 1.0; /* cluster-wide decay factor for history of CPU time */
 
 int    numofqueues  = 0;
 int    numofprocs   = 0;
@@ -930,6 +936,7 @@ periodicCheck(void)
     static time_t last_tryControlJobs = 0;
     static time_t last_jobPriUpdTime = 0;
     static time_t first_hostInfoRefreshTime = 0;
+    static int    histTime = 0;
 
     ls_syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
 
@@ -977,6 +984,13 @@ periodicCheck(void)
         checkHWindow();
 
         TIMEIT(0, checkJgrpDep(), "checkJgrpDep");
+
+        /* decay and calculate history CPU time every 15 mins */
+        histTime += now - last_chk_time;
+        if (histTime >= CALCULATE_INTERVAL) {
+            TIMEIT(0, updAllSAcctForDecay(now), "updAllSAcctForDecay");
+            histTime = 0;
+        }
 
         now = time(0);
         last_chk_time = now;

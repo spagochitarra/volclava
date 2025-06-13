@@ -210,7 +210,7 @@ lsb_readjobinfo(int *more)
     int num, i, aa;
     struct LSFHeader hdr;
     char *buffer = NULL;
-    static struct jobInfoReply jobInfoReply;
+    static struct jobInfoReply jobInfoReply = {0};
     static struct jobInfoEnt jobInfo;
     static struct submitReq submitReq;
     static int first = TRUE;
@@ -287,6 +287,7 @@ lsb_readjobinfo(int *more)
     FREEUP( jobInfoReply.execUsername );
     FREEUP( jobInfoReply.parentGroup );
     FREEUP( jobInfoReply.jName );
+    FREEUP(jobInfoReply.chargedSAAP );
 
     TIMEIT(1, xdrmem_create(&xdrs, buffer, XDR_DECODE_SIZE_(hdr.length), XDR_DECODE), "xdrmem_create");
     TIMEIT(1, (aa = xdr_jobInfoReply(&xdrs, &jobInfoReply, &hdr)), "xdr_jobInfoReply");
@@ -402,6 +403,8 @@ lsb_readjobinfo(int *more)
         FREEUP(jobInfoReply.runRusage.pgid);
         jobInfoReply.runRusage.npgids = 0;
     }
+
+    jobInfo.chargedSAAP = jobInfoReply.chargedSAAP;
 
     if (more)
 	*more = hdr.reserved;

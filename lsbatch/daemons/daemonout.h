@@ -38,9 +38,6 @@
 #define  GET_HIGH(s, word) (s = (word >> 16) & 0x0000ffff)
 
 
-#define PREPARE_FOR_OP          1024
-#define READY_FOR_OP            1023
-
 #define RSCHED_LISTSEARCH_BY_EXECJID       0
 #define RSCHED_LISTSEARCH_BY_EXECLUSNAME   1
 
@@ -71,15 +68,12 @@ typedef enum {
     BATCH_RESOURCE_INFO = 30,
     BATCH_RUSAGE_JOB    = 32, 
     BATCH_JOB_FORCE      = 37,
-
     BATCH_UNUSED_38      = 38,
     BATCH_UNUSED_39      = 39,
-
     BATCH_STATUS_CHUNK   = 40,       
-
-    
-    BATCH_SET_JOB_ATTR    = 90,      
-
+    BATCH_SET_JOB_ATTR   = 90,
+    READY_FOR_OP         = 1023,
+    PREPARE_FOR_OP       = 1024
 } mbdReqType;
 
 #define SUB_RLIMIT_UNIT_IS_KB 0x80000000
@@ -205,6 +199,7 @@ struct jobInfoReply {
     int       counter[NUM_JGRP_COUNTERS]; 
     u_short   port;                
     int       jobPriority;         
+    char      *chargedSAAP;
 };
 
 struct infoReq {

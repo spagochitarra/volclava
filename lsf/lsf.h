@@ -737,12 +737,28 @@ struct hostEntryLog {
         }                                                       \
     }
 
+#define TIMEVAL2(level,func,val)                                 \
+    { if (timinglevel > level) {                                \
+            struct timeval before, after;                       \
+            struct timezone tz;                                 \
+            gettimeofday(&before, &tz);                         \
+            func;                                               \
+            gettimeofday(&after, &tz);                          \
+            val = ((after.tv_sec - before.tv_sec)*1000.0 +   \
+                        (after.tv_usec-before.tv_usec)/1000.0);   \
+        } else {                                                \
+            func;                                               \
+            val = 0.0;                                            \
+        }                                                       \
+    }
+
 #define LC_SCHED    0x00000001
 #define LC_EXEC     0x00000002
 #define LC_TRACE    0x00000004
 #define LC_COMM     0x00000008
 #define LC_XDR      0x00000010
 #define LC_CHKPNT   0x00000020
+#define LC_FAIR     0x00000040
 #define LC_FILE     0x00000080
 #define LC_AUTH     0x00000200
 #define LC_HANG     0x00000400
@@ -758,6 +774,7 @@ struct hostEntryLog {
 #define LC_ELIM     0x02000000
 #define LC_M_LOG    0x04000000
 #define LC_PERFM    0x08000000
+
 
 #define LOG_DEBUG1  LOG_DEBUG + 1
 #define LOG_DEBUG2  LOG_DEBUG + 2

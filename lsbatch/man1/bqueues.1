@@ -1,7 +1,7 @@
 .ds ]W %
 .ds ]L
 .nh
-.TH bqueues 1 "Lava Version 1.0 - Sept 2007"
+.TH bqueues 1 "Volclava Version 1.0 - June 2025"
 .br
 .SH NAME
 \fBbqueues\fR - displays information about queues
@@ -9,7 +9,7 @@
 .BR
 .PP
 .PP
-\fBbqueues \fR[\fB-w\fR | \fB-l\fR] [\fB-m\fR \fIhost_name\fR\fI \fR|\fI \fR\fB-m\fR\fI host_group\fR\fI | \fR\fB-m all\fR] 
+\fBbqueues \fR[\fB-w\fR | \fB-l\fR | \fB-r\fR] [\fB-m\fR \fIhost_name\fR\fI \fR|\fI \fR\fB-m\fR\fI host_group\fR\fI | \fR\fB-m all\fR] 
 [\fB-u\fR\fB \fR\fIuser_name \fR|\fI \fR\fB-u\fR\fI user_group | \fR\fB-u all\fR] [\fIqueue_name\fR ...] 
 .PP
 \fBbqueues \fR[\fB-h\fR | \fB-V\fR]
@@ -46,6 +46,12 @@ queue characteristics and statistics, scheduling parameters, resource
 limits, scheduling policies, users, hosts, user shares, windows, 
 associated commands, and job controls.
 
+.TP
+\fB-r\fR
+.IP
+Displays the same information as the -l option. In addition, if fairshare
+is defined for this queue, displays recursively the share account tree of
+the fairshare queue. The share accounts are only created for active users.
 
 .TP 
 \fB-m\fR \fIhost_name \fR|\fI \fR\fB-m\fR\fI host_group \fR| \fB-m\fR\fI \fR\fBall\fR 
@@ -678,8 +684,30 @@ submitted using the -I, -Is, and -Ip options of bsub(1). The
 default is to accept both interactive and non-interactive jobs. 
 
 .RE
+
+.IP
+FAIRSHARE
+.BR
+.RS
+.IP
+Queue-level fairshare scheduling is enabled. Jobs in this queue
+are scheduled based on a fairshare policy instead of the
+first-come, first-served (FCFS) policy.
+
 .RE
 .RE
+.RE
+.RE
+
+.IP
+USER_SHARES
+.BR
+.RS
+.IP
+A list of [user_name, share] pairs. The user_name is either a user
+name or a usergroup name. The share is the number of shares of
+resources that are assigned to the user or usergroup.
+
 .RE
 
 .IP

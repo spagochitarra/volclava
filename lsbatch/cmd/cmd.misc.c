@@ -1,4 +1,5 @@
-/* $Id: cmd.misc.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: cmd.misc.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -175,6 +176,19 @@ prtValue(int len, int val)
 
        return (out);
 }
+
+char *
+prtFloat(int len, int precision,float val)
+{
+    static char out[100];
+    char fomt[200];
+
+       sprintf(fomt, "%%%d.%df ", len, precision);
+       sprintf(out, fomt, val);
+
+       return (out);
+}
+
 
 char *
 prtDash(int len)

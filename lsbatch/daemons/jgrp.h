@@ -1,4 +1,6 @@
-/* $Id: jgrp.h 397 2007-11-26 19:04:00Z mblack $
+/* 
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: jgrp.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,6 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#ifndef JGRP_H
+#define JGRP_H
 
 #define DESTROY_REF(x, y) { \
      y(x);\
@@ -140,3 +144,4 @@ extern int    updLocalJData(struct jData *, struct jData *);
 extern int    localizeJobElement(struct jData *);
 extern int    localizeJobArray(struct jData *);
 
+#endif

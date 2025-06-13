@@ -20,16 +20,17 @@
  */
 
 #include <math.h>
-#include "mbd.h"
 #include <stdlib.h>
 
+#include "mbd.h"
+#include "mbd.fairshare.h"
 #include "../../lsf/lib/lsi18n.h"
+
 #define NL_SETN         10
+#define JOBIDSTRLEN     20
 
-void
-fillHostnames();
+void fillHostnames();
 
-#define JOBIDSTRLEN 20
 struct hTab jobIdHT;
 struct hTab jgrpIdHT;
 
@@ -44,6 +45,10 @@ getCheckList(struct infoReq*, char**, char**);
 
 static time_t
 runWindowCloseTime(struct qData*);
+
+static void addSAInfoTree(struct queueInfoEnt *, struct qData *);
+static void createSAInfoTree(struct shareAcct *, struct shareAcctInfoEnt *);
+extern void freeShareAcctInfoEnt(struct shareAcctInfoEnt *);
 
 void
 inQueueList (struct qData *entry)
@@ -139,8 +144,6 @@ checkQWindow (void)
             }
         }
     }
-
-
 }
 
 struct qData *
@@ -424,6 +427,15 @@ checkQueues(struct infoReq*        queueInfoReqPtr,
 
             for (i = 0; i <LSB_SIG_NUM; i++)
                 qRep->sigMap[i] = qp->sigMap[i];
+
+            qRep->fsFactors.cpuTimeFactor = qp->fsFactors.cpuTimeFactor;
+            qRep->fsFactors.runTimeFactor = qp->fsFactors.runTimeFactor;
+            qRep->fsFactors.runJobFactor = qp->fsFactors.runJobFactor;
+            qRep->fsFactors.histHours = qp->fsFactors.histHours;
+            if (qp->qAttrib & Q_ATTRIB_FS) {
+                qRep->userShares = qp->userShares;
+                addSAInfoTree(qRep, qp);
+            }
 
             queueInfoReplyPtr->numQueues++;
 
@@ -727,6 +739,11 @@ freeQueueInfoReply (struct queueInfoReply *reply, char *freeAll)
         FREEUP (reply->queues[i].resumeActCmd);
         FREEUP (reply->queues[i].terminateActCmd);
         FREEUP (reply->queues[i].chkpntDir);
+        FREEUP (reply->queues[i].userShares);
+        if (reply->queues[i].shareAcctTree) {
+            freeShareAcctInfoEnt(reply->queues[i].shareAcctTree);
+            FREEUP(reply->queues[i].shareAcctTree);
+        }
     }
     FREEUP (reply->queues);
 }
@@ -879,4 +896,55 @@ runWindowCloseTime(struct qData *qp)
         }
     }
 }
+
+/* Translate faireshare tree from the format organized by 'struct shareAcct'
+ * into the format organized by 'struct shareAcctInfoEnt'.
+ */
+static void addSAInfoTree(struct queueInfoEnt *qInfo, struct qData *qp) {
+    hEnt *ent = NULL;
+    struct fairsharePolicy *policy = NULL;
+
+    ent = h_getEnt_(&policies, qp->queue);
+    if (!ent) {
+        return;
+    }
+    policy = (struct fairsharePolicy *)ent->hData;
+    qInfo->shareAcctTree = (struct shareAcctInfoEnt *)my_calloc(1, sizeof(struct shareAcctInfoEnt), "addSAInfoTree");
+    createSAInfoTree(policy->root, qInfo->shareAcctTree);
+    
+} /*addSAInfoTree*/
+
+/*Traverse fairshare tree in pre-order way*/
+static void createSAInfoTree(struct shareAcct * node, struct shareAcctInfoEnt *saInfo) {
+    int i = 0;
+    LIST_ENTRY_T        *ent;
+    struct shareAcct    *curAcct = NULL;
+
+    saInfo->name = safeSave(node->name);
+    saInfo->share = node->share;
+    saInfo->priority = node->priority;
+    saInfo->numStartJobs = node->numStartJobs;
+    saInfo->cpuTime = ((node->histCpuTime + node->newUsedCpuTime) >= MIN_CPU_TIME) ? (node->histCpuTime + node->newUsedCpuTime) : 0.0;
+    saInfo->runTime = (float)node->runTime;
+    saInfo->nChildShareAcct = 0;
+    saInfo->childShareAccts = NULL;
+
+    if (FS_IS_LEAF_NODE(node)) {
+        return;
+    }
+
+    saInfo->childShareAccts = (struct shareAcctInfoEnt *)my_calloc(FS_NUM_CHILD(node), sizeof(struct shareAcctInfoEnt), "createSAInfoTree");
+    saInfo->nChildShareAcct = FS_NUM_CHILD(node);
+
+    i = 0;
+    for (ent = node->sharePolicy->sAcctList->back;
+         ent != (LIST_ENTRY_T *)node->sharePolicy->sAcctList;
+         ent = ent->back){
+         curAcct = (struct shareAcct *)ent;
+         createSAInfoTree(curAcct, &(saInfo->childShareAccts[i]));
+         i++;
+    }
+
+    return;
+} /*createSAInfoTree*/
 

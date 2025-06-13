@@ -358,15 +358,18 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
 int
 putEnv(char *env, char *val)
 {
+    int ret;
 
-    char *buf;
+    if ((env == NULL) || (env[0] == 0)) {
+        return 0;
+    }
 
-    buf = malloc(strlen(env) + strlen(val) + 4);
-    if (buf == NULL)
-        return (-1);
+    if (val == NULL) {
+        val = "";
+    }
+    ret = setenv(env, val, 1);
 
-    sprintf(buf, "%s=%s", env, val);
-    return putenv(buf);
+    return ret;
 }
 
 void

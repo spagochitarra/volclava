@@ -18,6 +18,7 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
 #include "../../lsf/lib/lsi18n.h"
 #define NL_SETN         10
 
@@ -172,6 +173,7 @@ minit(int mbdInitFlags)
 
     initTab(&jobIdHT);
     initTab(&jgrpIdHT);
+    initTab(&policies);
 
     uDataPtrTb = uDataTableCreate();
 
@@ -292,10 +294,10 @@ minit(int mbdInitFlags)
     }
 
     TIMEIT(0, readUserConf(mbdInitFlags), "minit_readUserConf");
-    TIMEIT(0, readQueueConf(mbdInitFlags), "minit_readQueueConf");
     copyUserGroups();
-
     updUserList(mbdInitFlags);
+
+    TIMEIT(0, readQueueConf(mbdInitFlags), "minit_readQueueConf");
     updQueueList();
 
     if (chanInit_() < 0) {
@@ -617,7 +619,7 @@ readQueueConf(int mbdInitFlags)
             lsb_CheckError = WARNING_ERR;
             ls_syslog(LOG_ERR, "\
 %s: lsb_readqueue() failed %M, using default queue", __FUNCTION__);
-            createDefQueue ();
+            createDefQueue();
             return;
         }
     }
@@ -678,7 +680,6 @@ readQueueConf(int mbdInitFlags)
     }
 
     createDefQueue();
-
 }
 static void
 createDefQueue(void)
@@ -1059,8 +1060,9 @@ addMember(struct gData *groupPtr,
     if (isgrp) {
         groupPtr->gPtr[groupPtr->numGroups] = subgrpPtr;
         groupPtr->numGroups++;
-    } else
+    } else {
         h_addEnt_(&groupPtr->memberTab, name, NULL);
+    }
 
     return;
 
@@ -1246,6 +1248,7 @@ freeQData (struct qData *qp, int delete)
         setDestroy(qp->hostInQueue);
         qp->hostInQueue = NULL;
     }
+    FREEUP(qp->userShares);
 
     FREEUP (qp);
     return;
@@ -1534,6 +1537,12 @@ initQData (void)
     }
     qPtr->chkpntPeriod = -1;
     qPtr->chkpntDir    = NULL;
+    qPtr->userShares = NULL;
+    qPtr->policy = NULL;
+    qPtr->fsFactors.cpuTimeFactor = -1;
+    qPtr->fsFactors.runTimeFactor = -1;
+    qPtr->fsFactors.runJobFactor = -1;
+    qPtr->fsFactors.histHours = -1;
 
     return qPtr;
 }
@@ -1925,6 +1934,13 @@ setParams(struct paramConf *paramConf)
     setValue(acctArchiveInSize, params->acctArchiveInSize);
     setValue(resourcePerTask, params->resourcePerTask);
 
+    setValue(cpuTimeFactor, params->cpuTimeFactor);
+    setValue(runTimeFactor, params->runTimeFactor);
+    setValue(runJobFactor, params->runJobFactor);
+    setValue(histHours, params->histHours)
+    if (histHours > 0.0) {
+        clsDecay = (float) pow(10.0, -1.0/(histHours * 4));
+    }
 }
 
 static void
@@ -1954,7 +1970,7 @@ createTmpGData (struct groupInfoEnt *groups,
     static char fname[] = "createTmpGData";
     struct groupInfoEnt *gPtr;
     char *HUgroups, *sp, *wp;
-    int i;
+    int i,j;
     struct gData *grpPtr;
 
     if (groupType == USER_GRP)
@@ -2002,9 +2018,96 @@ createTmpGData (struct groupInfoEnt *groups,
             lsb_CheckError = WARNING_ERR;
             freeGrp (grpPtr);
             *nTempGroups -= 1;
+            continue;
         }
-    }
 
+        /*build user share*/
+        if (groupType == USER_GRP && gPtr->numUserShares > 0) {
+            int   hasAll = 0, hasDefault = 0, hasOthers = 0;
+            hTab  myMebmTab;
+            sTab  stab;
+            hEnt *e;
+            int defShare = 0;
+            int uSharesSize = 0;
+
+            if (grpPtr->memberTab.numEnts == 0 && grpPtr->numGroups == 0) {
+                hasAll = 1;
+            }
+
+            if (!hasAll) {
+                h_initTab_(&myMebmTab, (grpPtr->memberTab.numEnts + grpPtr->numGroups + 11));
+
+                /*add user members*/
+                e = h_firstEnt_(&grpPtr->memberTab, &stab);
+                while (e) {
+                    h_addEnt_(&myMebmTab, e->keyname, NULL);
+                    e = h_nextEnt_(&stab);
+                }
+                /*add group members*/
+                for (j = 0; j < grpPtr->numGroups; j++) {
+                    h_addEnt_(&myMebmTab, grpPtr->gPtr[j]->group, NULL);
+                }
+            }
+
+            grpPtr->ugrpAttrs = (struct ugrpAttrs *)my_calloc(1, sizeof(struct ugrpAttrs), "createTmpGData()");
+            grpPtr->ugrpAttrs->userShares = (struct userShares *)my_calloc(gPtr->numUserShares, sizeof(struct userShares), "createTmpGData()");
+
+            /*Add users with configured usershare*/
+            for (j = 0; j < gPtr->numUserShares; j++) {
+                hEnt *uEnt = NULL;
+
+                grpPtr->ugrpAttrs->userShares[j].name = safeSave(gPtr->userShares[j].name);
+                grpPtr->ugrpAttrs->userShares[j].share = gPtr->userShares[j].share;
+                grpPtr->ugrpAttrs->numUserShares++;
+
+                if (hasAll) {
+                    /*just add configured user share directly*/
+                    continue;
+                } else {
+                    if (!hasDefault && strcasecmp(grpPtr->ugrpAttrs->userShares[j].name, "default") == 0) {
+                        /*handle 'default' keyword*/
+                        hasDefault = 1;
+                        defShare = grpPtr->ugrpAttrs->userShares[j].share;
+                    } else if (!hasOthers && strcasecmp(grpPtr->ugrpAttrs->userShares[j].name, "others") == 0) {
+                        hasOthers = 1;
+                    } else if ((uEnt = h_getEnt_(&myMebmTab, grpPtr->ugrpAttrs->userShares[j].name))) {
+                        /*remove configured one in members cache*/
+                        h_delEnt_(&myMebmTab, uEnt);
+                    } else {
+                        /*If configured one is not in members cache, it maybe a descendant of the member in group type*/
+                        if (! gMemberForShare(grpPtr->ugrpAttrs->userShares[j].name, grpPtr)) {
+                           ls_syslog(LOG_WARNING, "\
+%s: User <%s> is not a member of group <%s>, so its assigned shares cannot be used", fname, grpPtr->ugrpAttrs->userShares[j].name, grpPtr->group);
+                           lsb_CheckError = WARNING_ERR;
+                       } 
+                    }
+                }
+            }
+            
+            /*Add users with default usershare*/
+            if (!hasAll) {
+                if (hasDefault && myMebmTab.numEnts > 0) {
+                    /*'default' is configured, we need add the users who use default shares into userShare array*/
+                    uSharesSize = gPtr->numUserShares + myMebmTab.numEnts;
+                    grpPtr->ugrpAttrs->userShares = (struct userShares *)realloc(grpPtr->ugrpAttrs->userShares, uSharesSize*sizeof(struct userShares));
+                    if (!grpPtr->ugrpAttrs->userShares) {
+                        ls_syslog(LOG_ERR, "%s: realloc() failed to reallocate memory for default usershare", fname);
+                        mbdDie(MASTER_MEM);
+                    }
+
+                    e = h_firstEnt_(&myMebmTab, &stab);
+                    while (e) {
+                        /*Add users with default share*/
+                        grpPtr->ugrpAttrs->userShares[grpPtr->ugrpAttrs->numUserShares].name = safeSave(e->keyname);
+                        grpPtr->ugrpAttrs->userShares[grpPtr->ugrpAttrs->numUserShares].share = defShare;
+                        grpPtr->ugrpAttrs->numUserShares++;
+                        e = h_nextEnt_(&stab);
+                    }
+                }
+                h_delTab_(&myMebmTab);
+            }
+        }                                                                             
+    }
 }
 
 static int
@@ -2160,6 +2263,7 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
     char *sp;
     char *word;
     int queueIndex = 0;
+    hTab   posTab;
 
     for (qPtr = qDataList->forw; qPtr != qDataList; qPtr = qPtr->forw) {
         qPtr->flags &= ~QUEUE_UPDATE;
@@ -2173,6 +2277,7 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
         return;
     }
 
+    h_initTab_(&posTab, 11);
     for (i = 0; i < queueConf->numQueues; i++) {
 
         queue = &(queueConf->queues[i]);
@@ -2235,6 +2340,21 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 
         ++queueIndex;
         qPtr->queueId = queueIndex;
+        if (queue->qAttrib & Q_ATTRIB_FS) {
+            qPtr->posId = queueIndex;
+        } else {
+            int new;
+            char posKey[64] = {0};
+            snprintf(posKey, 64, "%d", queue->priority);
+
+            hEnt *ent = h_addEnt_(&posTab, posKey, &new);
+            if (new) {
+                qPtr->posId = queueIndex;
+                ent->hData = (int *)((long)queueIndex);
+            } else {
+                qPtr->posId = (long)ent->hData;
+            }
+        }
 
         if ((oldQPtr = getQueueData(qPtr->queue)) == NULL) {
             inQueueList (qPtr);
@@ -2267,6 +2387,7 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
             }
         }
     }
+    h_freeRefTab_(&posTab);
 
     for (i = 0; i < queueConf->numQueues; i++) {
 
@@ -2283,6 +2404,10 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
         setValue(qPtr->procLimit, queue->procLimit);
         setValue(qPtr->minProcLimit, queue->minProcLimit);
         setValue(qPtr->defProcLimit, queue->defProcLimit);
+        setValue(qPtr->fsFactors.cpuTimeFactor, queue->fsFactors.cpuTimeFactor);
+        setValue(qPtr->fsFactors.runTimeFactor, queue->fsFactors.runTimeFactor);
+        setValue(qPtr->fsFactors.runJobFactor, queue->fsFactors.runJobFactor);
+        setValue(qPtr->fsFactors.histHours, queue->fsFactors.histHours);
         qPtr->windEdge = 0 ;
 
         if (queue->windows != NULL) {
@@ -2420,8 +2545,8 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
         if (queue->preCmd)
             qPtr->preCmd = safeSave (queue->preCmd);
 
-	if (queue->prepostUsername)
-	    qPtr->prepostUsername = safeSave (queue->prepostUsername);
+        if (queue->prepostUsername)
+            qPtr->prepostUsername = safeSave (queue->prepostUsername);
 
         if (queue->postCmd)
             qPtr->postCmd = safeSave (queue->postCmd);
@@ -2536,6 +2661,12 @@ addQData(struct queueConf *queueConf, int mbdInitFlags )
 
         if (qPtr->qAttrib & Q_ATTRIB_BACKFILL)
             qAttributes |= Q_ATTRIB_BACKFILL;
+
+        if (queue->qAttrib & Q_ATTRIB_FS) {
+            qPtr->userShares = safeSave(queue->userShares);
+            /*create fairshare policy tree*/
+            addFSPolicy(qPtr);
+        }
     }
 }
 
@@ -2728,6 +2859,7 @@ copyQData (struct qData *fromQp, struct qData *toQp)
     copyString(toQp->terminateActCmd, fromQp->terminateActCmd);
 
     copyString(toQp->hostList, fromQp->hostList);
+    copyString(toQp->userShares, fromQp->userShares);
 
 
     toQp->numProcessors = fromQp->numProcessors;

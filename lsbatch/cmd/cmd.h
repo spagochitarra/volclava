@@ -132,6 +132,7 @@ extern int  skipJob(int, int *, int);
 extern void prtWord(int, const char *, int);
 extern void prtWordL(int, const char *);
 extern char *prtValue(int, int);
+extern char *prtFloat(int, int, float);
 extern char *prtDash(int);
 
 

@@ -856,3 +856,50 @@ supportJobNamePattern(char * jobname)
    return 0;
 }
 
+
+/*traverse fairshare tree in pre-order way*/
+int traverseSATree(struct shareAcctInfoEnt * node, int op, int (*func)(), ...) {
+    va_list valist;
+    int i;
+    void *xdrs, *hdr;
+    int *size;    
+
+    if (!node || !func) {
+        return TRUE;
+    }
+
+    va_start(valist, func);
+
+    switch(op){
+        case TRAVERSE_FS_SIZE:
+            size = va_arg(valist, int *);
+            if (!(*func)(node, size)) /*use the first one*/
+                return (FALSE);
+            for (i = 0; i < node->nChildShareAcct; i++) {
+                if (! traverseSATree(&(node->childShareAccts[i]), TRAVERSE_FS_SIZE, func, size)) {
+                    return FALSE;
+                }
+            }
+            break;
+        case TRAVERSE_FS_SACCTXDR:
+            xdrs = va_arg(valist, void *);
+            hdr = va_arg(valist, void *);
+            if (!(*func)(node, xdrs, hdr)) {
+                return(FALSE);
+            }
+            for (i = 0; i < node->nChildShareAcct; i++) {
+                if (! traverseSATree(&(node->childShareAccts[i]), TRAVERSE_FS_SACCTXDR, func, xdrs, hdr)) {
+                    return FALSE;
+                }
+            }
+            break;
+        default:
+            break;
+    }
+
+    return TRUE;
+}
+
+
+
+

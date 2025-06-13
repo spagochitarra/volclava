@@ -19,6 +19,7 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
 
 #define NL_SETN         10
 
@@ -55,6 +56,7 @@ static void initUData(struct uData *);
 static void addOneAbs(int *, int, int);
 static struct userAcct *addUAcct(struct hTab **, struct uData *, int,
                                  int, int, int, int);
+static void updJobSAcctAfterReplay(struct jData *);
 extern char *lsfDefaultProject;
 extern int getQUsable(struct qData *);
 
@@ -146,6 +148,10 @@ updCounters (struct jData *jData, int oldStatus, time_t eventTime)
         case JOB_STAT_EXIT:
         case JOB_STAT_DONE:
 
+            if (eventTime == LOG_IT) {
+                accumHistCpuTime(jData);
+                detachedJobFromFSTree(jData, "updCounters()/job ended");
+            }
 
             if (oldStatus & JOB_STAT_WAIT) {
                 if ( logclass & (LC_TRACE | LC_EXEC )) {
@@ -1305,6 +1311,10 @@ checkParams (struct infoReq *req, struct parameterInfo *reply)
     reply->acctArchiveInDays = acctArchiveInDays;
     reply->acctArchiveInSize = acctArchiveInSize;
     reply->resourcePerTask = resourcePerTask;
+    reply->cpuTimeFactor = cpuTimeFactor;
+    reply->runTimeFactor = runTimeFactor;
+    reply->runJobFactor = runJobFactor;
+    reply->histHours = histHours;
 }
 
 void
@@ -1560,6 +1570,7 @@ updHostLeftRusageMem(struct jData *jobP, int order)
 
     resValPtr = getReserveValues (jobP->shared->resValPtr, jobP->qPtr->resValPtr);
     if (resValPtr != NULL) {
+        int * hBitMaps = NULL;
         resMem = resValPtr->val[MEM];
 
         if (resMem < INFINIT_LOAD && resMem > -INFINIT_LOAD) {
@@ -1568,6 +1579,8 @@ updHostLeftRusageMem(struct jData *jobP, int order)
             if (resValPtr->duration != INFINIT_INT)
 
                 return;
+
+            hBitMaps = (int *)my_calloc(GET_INTNUM(numofhosts()), sizeof(int), fname);
 
             for (numHost = 0; numHost < jobP->numHostPtr; numHost++) {
                 if (jobP->hPtr[numHost]->leftRusageMem == INFINIT_LOAD){
@@ -1579,16 +1592,256 @@ updHostLeftRusageMem(struct jData *jobP, int order)
                                    jobP->hPtr[numHost]->host) == 0)
                             break;
                     }
-                    if (i < numLIMhosts && LIMhosts[i].maxMem != 0)
+                    if (i < numLIMhosts && LIMhosts[i].maxMem != 0) {
                         jobP->hPtr[numHost]->leftRusageMem = LIMhosts[i].maxMem;
-                    else
+                    } else {
+                        FREEUP(hBitMaps);
                         return;
+                    }
                 }
-                jobP->hPtr[numHost]->leftRusageMem +=  resMem * order;
+                if (resourcePerTask) {
+                    jobP->hPtr[numHost]->leftRusageMem +=  resMem * order;
+                } else {
+                    int isSet;
+                    TEST_BIT(jobP->hPtr[numHost]->hostId, hBitMaps, isSet);
+                    if (isSet) {
+                        continue;
+                    } else {
+                        jobP->hPtr[numHost]->leftRusageMem +=  resMem * order;
+                        SET_BIT(jobP->hPtr[numHost]->hostId, hBitMaps);
+                    }            
+                }
                 if (logclass & (LC_TRACE | LC_SCHED ))
                     ls_syslog(LOG_DEBUG, "%s: job <%s> reserved mem is %f, execution host <%s>, new leftRusageMem is %f, order is %d", fname, lsb_jobid2str(jobP->jobId),  resMem, jobP->hPtr[numHost]->host, jobP->hPtr[numHost]->leftRusageMem, order);
 
             }
+            FREEUP(hBitMaps);
         }
     }
 }
+
+/******************************************************************************************
+ * Description:
+ * restore share account information for jobs which are still in mbatchd memory.
+ *
+ ******************************************************************************************
+ */
+void recoverShareAccts() {
+    static char fname[] = "rscoverShareAccts()";
+    int sourceJobList[] = {PJL, MJL, FJL, SJL};
+    int i = 0;
+    struct jData *job = NULL;
+
+    if (logclass & (LC_TRACE | LC_FAIR)) {
+        ls_syslog(LOG_DEBUG1, "%s: Entering this routine ....", fname);
+    }
+    for(i = 0; i < sizeof(sourceJobList)/sizeof(int); i++) {
+        int listNo = sourceJobList[i];
+
+        for(job = jDataList[listNo]->back; job != jDataList[listNo]; job=job->back) {
+
+            if (!(job->qPtr->qAttrib & Q_ATTRIB_FS)) {
+                continue;
+            }
+
+            if ((job->jFlags & JFLAG_URGENT_NOSTOP)
+                || (job->jFlags & JFLAG_URGENT)) {
+                /*brun job does not count in fairshare calculation*/
+                continue;
+            }
+
+            updAliveUserInFSTree(job->qPtr, job->userName);
+
+            if (listNo == PJL || listNo == MJL) {
+                continue;
+            }
+
+            updJobSAcctAfterReplay(job);
+        }
+    }
+    if (logclass & (LC_TRACE | LC_FAIR)) {
+        ls_syslog(LOG_DEBUG1, "%s: Leaving this routine ....", fname);
+    }
+    return;
+} /*recoverShareAccts*/
+
+/******************************************************************************************
+ * Description:
+ * Update shareAcct info for jobs which are still in mbd memory
+ *
+ * Params:
+ * job[in]: the target job
+ * 
+ * Return:
+ * 
+ ******************************************************************************************
+ */
+static void updJobSAcctAfterReplay(struct jData * job) {
+    static char fname[] = "updJobSAcctAfterReplay()";
+    struct shareAcct * sAcct =  NULL;
+    struct fairsharePolicy * policy;
+
+    policy = job->qPtr->policy;
+    sAcct = getSAcctForJob(policy, job, 1);
+
+    if (!sAcct) {
+        if (logclass & LC_FAIR) {
+            ls_syslog(LOG_DEBUG, "%s: Unable to find share attributable account path for job <%s>. There may be configuration changed.",
+                    fname, lsb_jobid2str(job->jobId));
+        }
+        return;
+    }
+
+    if (IS_FINISH(job->jStatus)) {
+        float qDecay = 0;
+        int decayTime = 0;
+        double decayRate = 1;
+        float decayCpuTime = 0;
+
+        /*accumulate decayed job cputime to shareAcct's history cputime*/
+        if (histHours <= 0.0 && job->qPtr->fsFactors.histHours <= 0.0) {
+            /* cputime accumulated by running jobs is not decayed, ignored finishing jobs' cputime*/
+            return;
+        }
+        if (job->qPtr->fsFactors.histHours == 0.0 ||
+            (job->qPtr->fsFactors.histHours < 0.0 && histHours == 0.0)) {
+            decayCpuTime = (float)job->cpuTime;
+        } else {
+            decayTime = (now - job->endTime) / CALCULATE_INTERVAL;
+            if (decayTime < 0) {
+                ls_syslog(LOG_ERR,"%s: job <%s> should be finished in the future, timezone on host may be wrong, please check!", fname, lsb_jobid2str(job->jobId));
+                return;
+            }
+
+            if (job->qPtr->fsFactors.histHours > 0.0) {
+                qDecay = (float) pow(10.0, -1.0/(job->qPtr->fsFactors.histHours * 4));
+                decayRate = pow((double)qDecay, decayTime);
+            } else {
+                decayRate = pow((double)clsDecay, decayTime);
+            }
+            decayCpuTime = (float)job->cpuTime * decayRate;
+        }
+
+        SACCT_DECAYED_CPUTIME_UPDATE(decayCpuTime, sAcct, fname);
+        updSAcctPriorityByPath(sAcct);
+
+        if (logclass & LC_FAIR) {
+            ls_syslog(LOG_DEBUG1, "\
+%s: Finished job <%s> cpu time <%f>, accumlated decayed cpu time <%f> to shareAcct <%s> histCpuTime, decayTime <%d>, decayValue <%f>, decayRate <%f>.", 
+                    fname, lsb_jobid2str(job->jobId),
+                    job->cpuTime, decayCpuTime, sAcct->path,
+                    decayTime,
+                    job->qPtr->fsFactors.histHours > 0.0 ? qDecay : clsDecay,
+                    (float)decayRate);
+        }
+
+    } else if (IS_START(job->jStatus)) {
+        float newUsedTime = 0.0;
+
+        /*accumulate newUsedCpuTime*/
+        if (job->runRusage.utime > 0) {
+            newUsedTime += job->runRusage.utime;
+        }
+        if (job->runRusage.stime > 0) {
+            newUsedTime += job->runRusage.stime;
+        }
+        if (newUsedTime >= MIN_CPU_TIME) {
+            SACCT_CPUTIME_UPDATE(newUsedTime, sAcct, fname);
+            if (logclass & LC_FAIR) {
+                ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> newUsedCpuTime <%fs> for job <%s>",
+                        fname, sAcct->path,
+                        newUsedTime,
+                        lsb_jobid2str(job->jobId));
+            }
+        }
+
+        /*accumulate runtime*/
+        if (job->runTime > 0) {
+            SACCT_RUNTIME_UPDATE(job->runTime, sAcct, fname);
+            if (logclass & LC_FAIR) {
+                ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> runTime <%ds> for job <%s>",
+                          fname, sAcct->path,
+                          job->runTime,
+                          lsb_jobid2str(job->jobId));
+            }
+        }
+
+        /*attached job to shareAcct, and update priority&order in SAAP, and log message*/
+        attachJob2FSTree(policy, job, sAcct, fname);
+    }
+    return;
+} /*updJobSAcctAfterReplay*/
+
+/******************************************************************************************
+ * Description:
+ * job get switched, we need update shareAcct accordingly.
+ *
+ * Params:
+ * job [in]: the target job
+ * qfp [in]: the orginal queue
+ * qtp [in]: the target queue
+ * 
+ * Return:
+ * 
+ ******************************************************************************************
+ */
+void updJobSAcctForSwitch(struct jData *job, struct qData *qfp, struct qData *qtp) {
+    static char fname[] = "updJobSAcctForSwitch()";
+
+    if (IS_PEND(job->jStatus)) {
+        if (qtp->qAttrib & Q_ATTRIB_FS) {
+            updAliveUserInFSTree(qtp, job->userName);
+        }
+    } else if (IS_START (job->jStatus) || (job->jStatus & JOB_STAT_UNKWN)) {
+        /*deached from orignal queue*/
+        if ((qfp->qAttrib & Q_ATTRIB_FS) && job->sa) {
+            SACCT_RUNTIME_UPDATE(-job->runTime, job->sa, fname);
+            if (logclass & LC_FAIR) {
+                ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> runTime <-%ds> for job <%s>",
+                          fname, job->sa->path,
+                          job->runTime,
+                          lsb_jobid2str(job->jobId));
+            }
+            detachedJobFromFSTree(job, fname);
+        }
+
+        /*update shareAcct for new queue*/
+        if (qtp->qAttrib & Q_ATTRIB_FS) {
+            struct shareAcct *sAcct = NULL;
+            hEnt   *ent;
+            struct fairsharePolicy * policy = NULL;
+
+            ent = h_getEnt_(&policies, qtp->queue);
+            if (!ent) {
+                return;
+            }
+
+            updAliveUserInFSTree(qtp, job->userName);
+
+            policy = (struct fairsharePolicy *)ent->hData;
+            sAcct = getSAcctForJob(policy, job, 1);
+
+            if (!sAcct) {
+                if (logclass & LC_FAIR) {
+                    ls_syslog(LOG_DEBUG, "%s: Failed to locate share attributable account path for job <%s> on queue <%s> for user <%s>. User <%s> may not have a valid share assignment configured.",
+                            fname, lsb_jobid2str(job->jobId),
+                            qtp->queue,
+                            job->userName,
+                            job->userName);
+                }
+                return;
+            }
+
+            SACCT_RUNTIME_UPDATE(job->runTime, sAcct, fname);
+            if (logclass & LC_FAIR) {
+                ls_syslog(LOG_DEBUG1, "%s: updated SAAP <%s> runTime <%ds> for job <%s>",
+                        fname, sAcct->path,
+                        job->runTime,
+                        lsb_jobid2str(job->jobId));
+            }
+            /*attached job to new shareAcct, and update priority&order in SAAP, and log message*/
+            attachJob2FSTree(policy, job, sAcct, fname);
+        }
+    }
+} /*updJobSAcctForSwitch*/
+

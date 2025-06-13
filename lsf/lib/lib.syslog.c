@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -408,46 +409,50 @@ getLogClass_ (char *lsp, char *tsp)
     while (lsp != NULL && (word = getNextWord_(&lsp))) {
         if (strcmp (word, "LC_SCHED") == 0)
             class |= LC_SCHED;
-        if (strcmp (word, "LC_PEND") == 0)
+        else if (strcmp (word, "LC_PEND") == 0)
             class |= LC_PEND;
-        if (strcmp (word, "LC_JLIMIT") == 0)
+        else if (strcmp (word, "LC_JLIMIT") == 0)
             class |= LC_JLIMIT;
-        if (strcmp (word, "LC_EXEC") == 0)
+        else if (strcmp (word, "LC_EXEC") == 0)
             class |= LC_EXEC;
-        if (strcmp (word, "LC_TRACE") == 0)
+        else if (strcmp (word, "LC_TRACE") == 0)
             class |= LC_TRACE;
-        if (strcmp (word, "LC_COMM") == 0)
+        else if (strcmp (word, "LC_COMM") == 0)
             class |= LC_COMM;
-        if (strcmp (word, "LC_XDR") == 0)
+        else if (strcmp (word, "LC_XDR") == 0)
             class |= LC_XDR;
-        if (strcmp (word, "LC_CHKPNT") == 0)
+        else if (strcmp (word, "LC_CHKPNT") == 0)
             class |= LC_CHKPNT;
-        if (strcmp (word, "LC_FILE") == 0)
+        else if (strcmp (word, "LC_FILE") == 0)
             class |= LC_FILE;
-        if (strcmp (word, "LC_AUTH") == 0)
+        else if (strcmp (word, "LC_AUTH") == 0)
             class |= LC_AUTH;
-        if (strcmp (word, "LC_HANG") == 0)
+        else if (strcmp (word, "LC_HANG") == 0)
             class |= LC_HANG;
-        if (strcmp (word, "LC_SIGNAL") == 0)
+        else if (strcmp (word, "LC_SIGNAL") == 0)
             class |= LC_SIGNAL;
-        if (strcmp (word, "LC_PIM") == 0)
+        else if (strcmp (word, "LC_PIM") == 0)
             class |= LC_PIM;
-        if (strcmp (word, "LC_SYS") == 0)
+        else if (strcmp (word, "LC_SYS") == 0)
             class |= LC_SYS;
-        if (strcmp (word, "LC_LOADINDX") == 0)
+        else if (strcmp (word, "LC_LOADINDX") == 0)
             class |= LC_LOADINDX;
-        if (strcmp (word, "LC_JGRP") == 0)
+        else if (strcmp (word, "LC_JGRP") == 0)
             class |= LC_JGRP;
-        if (strcmp (word, "LC_JARRAY") == 0)
+        else if (strcmp (word, "LC_JARRAY") == 0)
             class |= LC_JARRAY;
-        if (strcmp (word, "LC_MPI") == 0)
+        else if (strcmp (word, "LC_MPI") == 0)
             class |= LC_MPI;
-        if (strcmp (word, "LC_ELIM") == 0)
+        else if (strcmp (word, "LC_ELIM") == 0)
             class |= LC_ELIM;
-        if (strcmp (word, "LC_M_LOG") == 0)
+        else if (strcmp (word, "LC_M_LOG") == 0)
             class |= LC_M_LOG;
-        if (strcmp (word, "LC_PERFM") == 0)
+        else if (strcmp (word, "LC_PERFM") == 0)
             class |= LC_PERFM;
+        else if (strcmp (word, "LC_FAIR") == 0)
+            class |= LC_FAIR;
+        else
+            continue;
     }
     logclass = class;
 
@@ -458,4 +463,9 @@ void
 ls_closelog_ext(void)
 {
     logfile[0] = '\0';
+}
+
+int
+ls_getlogmask() {
+    return logmask;
 }

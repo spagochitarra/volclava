@@ -1,4 +1,5 @@
-/* $Id: jidx.h 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: jidx.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +17,9 @@
  *
  */
 
+#ifndef JIDX_H
+#define JIDX_H
+
 #define IDX_NOERR       0
 #define IDX_BOUND       1
 #define IDX_MEM         2
@@ -29,3 +33,4 @@ struct idxList {
     struct idxList *next;
 };
 extern int 	idxparse (struct idxList **, int *);
+#endif

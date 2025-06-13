@@ -19,9 +19,11 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
 
 #define NL_SETN         10
 #define SORT_HOST_NUM   30
+#define IS_FS_JOB(job)   (job->qPtr->qAttrib & Q_ATTRIB_FS)
 
 enum candRetCode {
     CAND_NO_HOST,
@@ -210,6 +212,7 @@ static int ckResReserve(struct hData *hD, struct resVal *resValPtr,
                         int *resource, struct jData *jp);
 
 static int getPeerCand(struct jData *jobp);
+static int isPeerJob(struct jData *, struct jData *);
 static int getPeerCand1(struct jData *jobp, struct jData *jpbw);
 static void copyPeerCand(struct jData *jobp, struct jData *jpbw);
 static void reserveSlots(struct jData *);
@@ -331,8 +334,10 @@ static void groupCandHostsInit(struct groupCandHosts *gc);
 static void inEligibleGroupsInit(int **inEligibleGroups, int numGroups);
 static void groupCands2CandPtr(int numOfGroups, struct groupCandHosts *gc,
                                int *numCandPtr, struct candHost **candPtr);
-struct jData *currentHPJob;
+static void initSchedPendJobSet(struct fairsharePolicy *policy);
+static int addSchedPendJob2Set(struct fsQueueJobSet *, void *);
 
+struct jData *currentHPJob;
 static bool_t      lsbPtilePack = FALSE;
 
 float bThresholds[]={0.1, 0.1, 0.1, 0.1, 5.0, 5.0, 1.0, 5.0, 2.0, 2.0, 3.0};
@@ -353,58 +358,63 @@ struct profileCounters counters[] = {
 };
 
 
-static int timeGetJUsable;
-static int timeGetQUsable;
-static int timeGetCandHosts;
-static int timeReadyToDisp;
-static int timeCntUQSlots;
-static int timeFSQelectPendJob;
-static int timePickAJob;
-static int timeScheduleAJob;
-static int timeFindBestHosts;
-static int timeHostPreference;
-static int timeHostJobLimitOk1;
-static int timeHJobLimitOk;
-static int timePJobLimitOk;
-
-int timeCollectPendReason;
+static float timeGetJUsable;
+static float timeGetQUsable;
+static float timeGetCandHosts;
+static float timeReadyToDisp;
+static float timeCntUQSlots;
+static float timeFSElectAJob;
+static float timePickAJob;
+static float timeScheduleAJob;
+static float timeFindBestHosts;
+static float timeHostPreference;
+static float timeDispatchAJob;
+static float timeHostJobLimitOk1;
+static float timeHJobLimitOk;
+static float timePJobLimitOk;
+static float timeFSUpdLoad;
+float        timeCollectPendReason;
 
 #define DUMP_TIMERS(fname)                                              \
     {                                                                   \
         if (logclass & LC_PERFM)                                        \
             ls_syslog(LOG_DEBUG,"\
-%s timeGetQUsable %d ms timeGetCandHosts %d ms \
-timeGetJUsable %d ms timeReadyToDisp %d ms timeCntUQSlots %d ms \
-timeFSQelectPendJob %d ms timePickAJob %d ms timeScheduleAJob %d ms \
-timeCollectPendReason %dms",                                            \
+%s timeGetQUsable %.2f ms timeGetCandHosts %.2f ms \
+timeGetJUsable %.2f ms timeReadyToDisp %.2f ms timeCntUQSlots %.2f ms \
+timeFSUpdLoad %.2f ms timeFSElectAJob %.2f ms timePickAJob %.2f ms timeScheduleAJob %.2f ms \
+timeDispatchAJob %.2f ms timeCollectPendReason %.2f ms", \
                       fname,                                            \
                       timeGetQUsable,                                   \
                       timeGetCandHosts,                                 \
                       timeGetJUsable,                                   \
                       timeReadyToDisp,                                  \
                       timeCntUQSlots,                                   \
-                      timeFSQelectPendJob,                              \
+                      timeFSUpdLoad,                                    \
+                      timeFSElectAJob,                              \
                       timePickAJob,                                     \
                       timeScheduleAJob,                                 \
+                      timeDispatchAJob,                                 \
                       timeCollectPendReason);                           \
     }
 
 #define ZERO_OUT_TIMERS()                       \
     {                                           \
-        timeGetJUsable      = 0;                \
-        timeGetCandHosts    = 0;                \
-        timeGetQUsable      = 0;                \
-        timeReadyToDisp     = 0;                \
-        timeCntUQSlots      = 0;                \
-        timeFSQelectPendJob = 0;                \
-        timePickAJob        = 0;                \
-        timeScheduleAJob    = 0;                \
-        timeFindBestHosts   = 0;                \
-        timeHostPreference  = 0;                \
-        timeHostJobLimitOk1 = 0;                \
-        timeHJobLimitOk     = 0;                \
-        timePJobLimitOk     = 0;                \
-        timeCollectPendReason = 0;              \
+        timeGetJUsable      = 0.0;              \
+        timeGetCandHosts    = 0.0;              \
+        timeGetQUsable      = 0.0;              \
+        timeReadyToDisp     = 0.0;              \
+        timeCntUQSlots      = 0.0;              \
+        timeFSElectAJob     = 0.0;              \
+        timePickAJob        = 0.0;              \
+        timeScheduleAJob    = 0.0;              \
+        timeFindBestHosts   = 0.0;              \
+        timeHostPreference  = 0.0;              \
+        timeHostJobLimitOk1 = 0.0;              \
+        timeHJobLimitOk     = 0.0;              \
+        timePJobLimitOk     = 0.0;              \
+        timeDispatchAJob    = 0.0;              \
+        timeCollectPendReason = 0.0;            \
+        timeFSUpdLoad       = 0.0;              \
     }
 
 static bool_t  updateAccountsInQueue;
@@ -416,9 +426,15 @@ static void resetSchedulerSession(void);
 struct jRef {
     struct jRef *forw;
     struct jRef *back;
-    struct jData *job;
+#define TYPE_JOB_SINGLE 1
+#define TYPE_JOB_SET    2
+    int type;  /*when type is TYPE_JOB_SINGLE, the job is struct jData *; 
+                *when type is TYPE_JOB_SET, job is struct fsQueueJobSet *
+                */
+    void *job;
 };
-static struct _list *jRefList;
+static LIST_T *jRefList;
+static struct fsQueueJobSet schedPendJobSet = {0};
 
 static int
 readyToDisp (struct jData *jpbw, int *numAvailSlots)
@@ -892,7 +908,7 @@ getCandHosts (struct jData *jpbw)
 
 
 
-    TIMEVAL(3, jUsable = getJUsable(jpbw, &numJUsable, &nProc), tmpVal);
+    TIMEVAL2(3, jUsable = getJUsable(jpbw, &numJUsable, &nProc), tmpVal);
     timeGetJUsable += tmpVal;
 
     if (jUsable == NULL)
@@ -962,12 +978,12 @@ getCandHosts (struct jData *jpbw)
     }
 
 
-    TIMEVAL(3, nHosts = findBestHosts(jpbw, resValPtr, nHosts, jpbw->numCandPtr,
+    TIMEVAL2(3, nHosts = findBestHosts(jpbw, resValPtr, nHosts, jpbw->numCandPtr,
                                       jpbw->candPtr, FALSE), tmpVal);
     timeFindBestHosts += tmpVal;
 
 
-    TIMEVAL(3, hostPreference(jpbw, nHosts), tmpVal);
+    TIMEVAL2(3, hostPreference(jpbw, nHosts), tmpVal);
     timeHostPreference += tmpVal;
 
 
@@ -1656,6 +1672,7 @@ ckResReserve(struct hData *hD, struct resVal *resValPtr, int *resource,
         if (resValPtr->val[jj] >= INFINIT_LOAD
             || resValPtr->val[jj] < 0.01)
             continue;
+
         if (jj < allLsInfo->numIndx) {
             if (fabs(hD->lsfLoad[jj] - INFINIT_LOAD) < 0.001 * INFINIT_LOAD) {
 
@@ -1663,42 +1680,20 @@ ckResReserve(struct hData *hD, struct resVal *resValPtr, int *resource,
             }
 
             if (allLsInfo->resTable[jj].orderType == INCR) {
-
-                if (hD->loadStop[jj] < INFINIT_LOAD) {
-                    if (resourcePerTask) { /*resource consumption is per task*/
-                        useVal = (int)((hD->loadStop[jj]
-                                        - hD->lsfLoad[jj])/ resValPtr->val[jj]);
-                    } else { /*resource consumption is per host*/
-                        useVal = (hD->loadStop[jj] - hD->lsfLoad[jj]) >= resValPtr->val[jj] ? hD->numCPUs:0;
-                    }
-                    if (useVal < 0)
-                        useVal = 0;
-                } else {
-                    useVal = hD->numCPUs;
-                }
+                useVal = hD->numCPUs;
             } else {
-
-                if (hD->loadStop[jj] >= INFINIT_LOAD || hD->loadStop[jj] <= -INFINIT_LOAD) {
-                    if (resourcePerTask) { /*resource consumption is per task*/
-                        useVal = (int) (hD->lsbLoad[jj]/ resValPtr->val[jj]);
-                    } else { /*resource consumption is per host*/
-                        useVal = hD->lsbLoad[jj] >= resValPtr->val[jj] ? hD->numCPUs:0;
-                    }
-                } else {
-                    if (resourcePerTask) { /*resource consumption is per task*/
-                        useVal = (int) ((hD->lsbLoad[jj] - hD->loadStop[jj])/resValPtr->val[jj]);
-                    } else { /*resource consumption is per host*/
-                        useVal = (hD->lsbLoad[jj] - hD->loadStop[jj]) >= resValPtr->val[jj] ? hD->numCPUs:0;
-                    }
-                    if (useVal < 0)
-                        useVal = 0;
+                if (resourcePerTask) { /*resource consumption is per task*/
+                    useVal = (int) (hD->lsbLoad[jj]/ resValPtr->val[jj]);
+                } else { /*resource consumption is per host*/
+                    useVal = hD->lsbLoad[jj] >= resValPtr->val[jj] ? hD->numCPUs:0;
                 }
             }
+
             if ((jj == MEM)
                 && (((int) (hD->leftRusageMem/resValPtr->val[MEM])) == 0)){
 
                 if (logclass & LC_SCHED)
-                    ls_syslog(LOG_DEBUG, "ckResReserve: Host <%s> doesn't have enough memory for rusage. leftRusageMem is %f, reserve memory is %f", hD->host, hD->leftRusageMem, resValPtr->val[MEM]);
+                    ls_syslog(LOG_DEBUG, "ckResReserve: Host <%s> doesn't have enough memory for job <%s> rusage. leftRusageMem is %f, reserve memory is %f, lsbLoad memory is %f", hD->host, lsb_jobid2str(jp->jobId), hD->leftRusageMem, resValPtr->val[MEM], hD->lsbLoad[MEM]);
 
                 return 0;
             }
@@ -1784,109 +1779,147 @@ getPeerCand(struct jData *jobp)
 {
     struct jData *jpbw;
     int numJobs = 0;
-    int jobDCS, peerDCS, isWinDeadline, jobRunLimit, peerRunLimit;
-    time_t jobDeadline, peerDeadline;
 
     jobp->usePeerCand = FALSE;
 
     INC_CNT(PROF_CNT_getPeerCand);
 
+    if (jobp->qPtr->qAttrib & Q_ATTRIB_FS) {
+        if (schedPendJobSet.nJobs > 0) {
+            hEnt *ent = h_getEnt_(&schedPendJobSet.usersTab, jobp->userName);
+            if (ent) {
+                LIST_T * jList = (LIST_T *)ent->hData;
+                struct jobFSRef * jRef;
 
-
-    for (jpbw = jobp->forw;
-         (numJobs < 100 && jpbw != jDataList[PJL]
-          && jpbw != jDataList[MJL]);
-         jpbw = jpbw->forw) {
-
-        INC_CNT(PROF_CNT_getPeerCandQuick);
-
-        if (!(jpbw->jStatus & (JOB_STAT_PEND | JOB_STAT_MIG)))
-            continue;
-        if (!(jpbw->jFlags & JFLAG_READY)) {
-
-            continue;
-        }
-        if (jpbw->qPtr->priority > jobp->qPtr->priority)
-            break;
-        if (jpbw->qPtr != jobp->qPtr) {
-
-            continue;
-        }
-        if (jpbw->uPtr != jobp->uPtr) {
-
-            continue;
-        }
-
-        if (!(jpbw->processed & JOB_STAGE_CAND)) {
-            continue;
-        }
-
-        if (QUEUE_IS_BACKFILL(jobp->qPtr) &&
-            jobp->shared->jobBill.rLimits[LSF_RLIMIT_RUN] !=
-            jpbw->shared->jobBill.rLimits[LSF_RLIMIT_RUN]) {
-
-            continue;
-        }
-        jobDCS = imposeDCSOnJob(jobp, &jobDeadline, &isWinDeadline,
-                                &jobRunLimit);
-        peerDCS = imposeDCSOnJob(jpbw, &peerDeadline, &isWinDeadline,
-                                 &peerRunLimit);
-        if (jobDCS || peerDCS) {
-            if (!peerDCS || !jobDCS || jobDeadline != peerDeadline ||
-                jobRunLimit != peerRunLimit) {
-
-                continue;
+                for (jRef = (struct jobFSRef *)jList->forw; 
+                     jRef != (struct jobFSRef *)jList; 
+                     jRef = jRef->frow) {
+                    jpbw = jRef->job;
+                    if (! isPeerJob(jobp, jpbw)) {
+                        continue;
+                    }
+                    if (getPeerCand1(jobp, jpbw)) {
+                        return TRUE;
+                    }
+                }
             }
         }
-        if (jobp->shared->jobBill.numProcessors
-            > jpbw->shared->jobBill.numProcessors)
-            continue;
-        else if (jobp->shared->jobBill.numProcessors
-                 < jpbw->shared->jobBill.numProcessors
-                 && jpbw->numCandPtr == 0)
-            continue;
-        if (jobp->numAskedPtr == 0 && jpbw->numAskedPtr > 0)
-            continue;
-        if (jpbw->dispTime > now_disp) {
+    } else {
+        for (jpbw = jobp->forw;
+            (numJobs < 100 && jpbw != jDataList[PJL]
+            && jpbw != jDataList[MJL]);
+            jpbw = jpbw->forw) {
 
-            continue;
-        }
+            INC_CNT(PROF_CNT_getPeerCandQuick);
 
-        if ((!jobp->shared->resValPtr && jpbw->shared->resValPtr)
-            || (jobp->shared->resValPtr && !jpbw->shared->resValPtr))
-            continue;
+            if (jpbw->qPtr->priority > jobp->qPtr->priority)
+                break;
 
-        if ((jobp->shared->resValPtr && jpbw->shared->resValPtr)
-            && (strcmp(jpbw->shared->jobBill.resReq,
-                       jobp->shared->jobBill.resReq) != 0))
-            continue;
-
-        if (jobp->shared->resValPtr) {
-            if ((jobp->shared->resValPtr->selectStr != NULL)
-                && (strstr(jobp->shared->resValPtr->selectStr, "type \"eq\" \"local\""))
-                && (strcmp(jpbw->schedHost, jobp->schedHost) != 0)){
+            if (! isPeerJob(jobp, jpbw)) {
                 continue;
             }
-        }else if (jobp->qPtr->resValPtr){
-            if ((jobp->qPtr->resValPtr->selectStr != NULL)
-                && (strstr(jobp->qPtr->resValPtr->selectStr, "type \"eq\" \"local\""))
-                && (strcmp(jpbw->schedHost, jobp->schedHost) != 0)){
-                continue;
-            }
-        }
 
-        if (!jobp->shared->resValPtr
+            if (getPeerCand1(jobp, jpbw)) {
+                return TRUE;
+            }
+            numJobs++;
+        }
+    }
+    return FALSE;
+}
+
+static int isPeerJob(struct jData *jobp, struct jData *jpbw) {
+    int jobDCS, peerDCS, isWinDeadline, jobRunLimit, peerRunLimit;
+    time_t jobDeadline, peerDeadline;
+
+    if (!(jpbw->jStatus & (JOB_STAT_PEND | JOB_STAT_MIG))) {
+        return FALSE;
+    }
+
+    if (!(jpbw->jFlags & JFLAG_READY)) {
+        return FALSE;
+    }
+
+    if ((jpbw->qPtr->priority == jobp->qPtr->priority) && (jpbw->qPtr != jobp->qPtr)) {
+        return FALSE;
+    }
+
+    if (jpbw->uPtr != jobp->uPtr) {
+        return FALSE;
+    }
+
+    if (!(jpbw->processed & JOB_STAGE_CAND)) {
+        return FALSE;
+    }
+
+    if (QUEUE_IS_BACKFILL(jobp->qPtr) &&
+        jobp->shared->jobBill.rLimits[LSF_RLIMIT_RUN] !=
+        jpbw->shared->jobBill.rLimits[LSF_RLIMIT_RUN]) {
+        return FALSE;
+    }
+    jobDCS = imposeDCSOnJob(jobp, &jobDeadline, &isWinDeadline,
+                            &jobRunLimit);
+    peerDCS = imposeDCSOnJob(jpbw, &peerDeadline, &isWinDeadline,
+                                &peerRunLimit);
+    if (jobDCS || peerDCS) {
+        if (!peerDCS || !jobDCS || jobDeadline != peerDeadline ||
+            jobRunLimit != peerRunLimit) {
+            return FALSE;
+        }
+    }
+
+    if (jobp->shared->jobBill.numProcessors
+            > jpbw->shared->jobBill.numProcessors) {
+        return FALSE;
+    } else if (jobp->shared->jobBill.numProcessors
+                < jpbw->shared->jobBill.numProcessors
+            && jpbw->numCandPtr == 0) {
+        return FALSE;
+    }
+
+    if (jobp->numAskedPtr == 0 && jpbw->numAskedPtr > 0) {
+        return FALSE;
+    }
+
+    if (jpbw->dispTime > now_disp) {
+        return FALSE;
+    }
+
+    if ((!jobp->shared->resValPtr && jpbw->shared->resValPtr)
+        || (jobp->shared->resValPtr && !jpbw->shared->resValPtr)) {
+        return FALSE;
+    }
+
+     if ((jobp->shared->resValPtr && jpbw->shared->resValPtr)
+        && (strcmp(jpbw->shared->jobBill.resReq,
+                    jobp->shared->jobBill.resReq) != 0)) {
+        return FALSE;
+    }
+
+    if (jobp->shared->resValPtr) {
+        if ((jobp->shared->resValPtr->selectStr != NULL)
+            && (strstr(jobp->shared->resValPtr->selectStr, "type \"eq\" \"local\""))
+            && (strcmp(jpbw->schedHost, jobp->schedHost) != 0)){
+            return FALSE;
+        }
+    }else if (jobp->qPtr->resValPtr){
+        if ((jobp->qPtr->resValPtr->selectStr != NULL)
+            && (strstr(jobp->qPtr->resValPtr->selectStr, "type \"eq\" \"local\""))
+            && (strcmp(jpbw->schedHost, jobp->schedHost) != 0)){
+            return FALSE;
+        }
+    }
+
+    if (!jobp->shared->resValPtr
             && !jpbw->shared->resValPtr
             && !jobp->qPtr->resValPtr
             && !jobp->numAskedPtr
             && !jpbw->numAskedPtr
-            && strcmp(jobp->schedHost, jpbw->schedHost) != 0)
-            continue;
-        if (getPeerCand1(jobp, jpbw))
-            return TRUE;
-        numJobs++;
+            && strcmp(jobp->schedHost, jpbw->schedHost) != 0) {
+        return FALSE;
     }
-    return FALSE;
+
+    return TRUE;
 }
 
 static int
@@ -2311,7 +2344,7 @@ getHostJobSlots (struct jData *jp, struct hData *hp, int *numAvailSlots,
     }
 
     hAcct = getHAcct(qp->hAcct, hp);
-    TIMEVAL(3, numSlots = pJobLimitOk(hp, hAcct, qp->pJobLimit), tmpVal);
+    TIMEVAL2(3, numSlots = pJobLimitOk(hp, hAcct, qp->pJobLimit), tmpVal);
     timePJobLimitOk += tmpVal;
     if (numNeeded > numSlots) {
         jp->newReason = PEND_QUE_PROC_JLIMIT;
@@ -2324,7 +2357,7 @@ getHostJobSlots (struct jData *jp, struct hData *hp, int *numAvailSlots,
     *numAvailSlots = numSlots;
 
 
-    TIMEVAL(3, numSlots1 = hJobLimitOk(hp, hAcct, qp->hJobLimit), tmpVal);
+    TIMEVAL2(3, numSlots1 = hJobLimitOk(hp, hAcct, qp->hJobLimit), tmpVal);
     timeHJobLimitOk += tmpVal;
     if (numNeeded > numSlots1) {
         jp->newReason = PEND_QUE_HOST_JLIMIT;
@@ -2335,7 +2368,7 @@ getHostJobSlots (struct jData *jp, struct hData *hp, int *numAvailSlots,
     *numAvailSlots = numSlots;
 
 
-    TIMEVAL(3, numSlots1 = getHostJobSlots1(numNeeded, jp, hp,
+    TIMEVAL2(3, numSlots1 = getHostJobSlots1(numNeeded, jp, hp,
                                             &numAvailSlots1, noHULimits), tmpVal);
     timeHostJobLimitOk1 += tmpVal;
 
@@ -3258,14 +3291,12 @@ disp_clean(void)
     static char     fname[] = "disp_clean";
     struct jData    *jpbw;
     int             list;
-    time_t          t;
 
     if (logclass & (LC_TRACE | LC_SCHED))
         ls_syslog(LOG_DEBUG2, "%s: Entering this routine...", fname);
 
     mSchedStage = 0;
     freedSomeReserveSlot = FALSE;
-    t = time(NULL);
 
     for (list = 0; list < NJLIST; list++) {
         for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
@@ -4169,11 +4200,10 @@ scheduleAndDispatchJobs(void)
     static  time_t          lastSharedResourceUpdateTime;
     static  struct timeval  scheduleStartTime;
     static  struct timeval  scheduleFinishTime;
-    static  int             newLoadInfo;
     static int             numQUsable = 0;
     int                    i;
     int                    loopCount;
-    int                    tmpVal;
+    float                    tmpVal;
     enum dispatchAJobReturnCode dispRet;
     int                    continueSched;
     int                    scheduleTime;
@@ -4183,8 +4213,10 @@ scheduleAndDispatchJobs(void)
     struct jRef *jR0;
     struct jData *jPtr;
     struct jData *jPtr0;
+    struct fsQueueJobSet * fsJobSet0 = NULL;
+    struct shareAcct     * attachedShareAcct = NULL;
     int min;
-    int cc;
+    float qTimeFSElectJob;
 
     now_disp = time(NULL);
     ZERO_OUT_TIMERS();
@@ -4195,7 +4227,6 @@ scheduleAndDispatchJobs(void)
     if (mSchedStage == 0) {
 
         nextSchedQ = qDataList->back;
-        newLoadInfo = FALSE;
         freedSomeReserveSlot = FALSE;
         updateAccountsInQueue = TRUE;
 
@@ -4230,13 +4261,80 @@ scheduleAndDispatchJobs(void)
                 /* The purpose of the pending job reference
                  * list is to make sure that each pending job
                  * is looked at by the scheduler only once.
+                 * In the jRef list, there are 2 kinds elements:
+                 * 1. single job
+                 * 2. job set : represent the job segment which
+                 *    belong to a fairshare queue. In the job set,
+                 *    jobs are organized by users.
+                 * e.g.
+                 * 
+                 * 
+                 * 
+                 * jRef-->jRef-->jRef--jRef-->jRef-->jRef-->jRef
+                 *        |_type=TYPE_JOB_SET         |_type=TYPE_JOB_SINGLE
+                 *        |_job=fsQueueJobSet         |_job=jData
+                 *                |_fairsharePolicy
+                 *                |_usersTab                                    
+                 *                    |_userA: jobFSRef->jobFSRef->jobFSRef
+                 *                    |                    |_jData
+                 *                    |                    |_idx
+                 *                    |_userB: jobFSRef->jobFSRef->jobFSRef
+                 *                                         |_jData
+                 *                                         |_idx
+                 * 
                  */
-                jR = calloc(1, sizeof(struct jRef));
-                jR->job = jPtr;
+                if (! IS_FS_JOB(jPtr)) { /*not fs job*/
+                    jR = my_calloc(1, sizeof(struct jRef), fname);
+                    jR->job = jPtr;
+                    jR->type = TYPE_JOB_SINGLE;
+                    fsJobSet0 = NULL;
 
-                listInsertEntryAtFront(jRefList,
-                                       (struct _listEntry *)jR);
+                    listInsertEntryAtFront(jRefList,
+                                            (struct _listEntry *)jR);
+                } else { /*fs job*/
+                    if (fsJobSet0 == NULL) { /*create a new job set*/
+                        jR = my_calloc(1, sizeof(struct jRef), fname);
+
+                        fsJobSet0 = sch_fs_newJobSet(jPtr->qPtr->policy);
+                        (*fsJobSet0->add)(fsJobSet0, (void *)jPtr);
+
+                        if (fsJobSet0) {
+                            jR->job = fsJobSet0;
+                            jR->type = TYPE_JOB_SET;
+                        } else {
+                            jR->job = jPtr;
+                            jR->type = TYPE_JOB_SINGLE;
+                        }
+                        listInsertEntryAtFront(jRefList,
+                                                (struct _listEntry *)jR);
+                    } else { /*exist a job set*/
+                        /*Try to check whether belong to the same job segment*/
+                        if (prevJobOnSegment(jPtr, jDataList[i]) == NULL) { /*not belong to the same job segment*/
+                            jR = my_calloc(1, sizeof(struct jRef), fname);
+                            fsJobSet0 = sch_fs_newJobSet(jPtr->qPtr->policy);
+                            (*fsJobSet0->add)(fsJobSet0, (void *)jPtr);
+
+                            if (fsJobSet0) {
+                                jR->job = fsJobSet0;
+                                jR->type = TYPE_JOB_SET;
+                            } else {
+                                jR->job = jPtr;
+                                jR->type = TYPE_JOB_SINGLE;
+                            }
+                            listInsertEntryAtFront(jRefList,
+                                                    (struct _listEntry *)jR);
+
+                        } else { /*belong to the same job segment*/
+                            (*fsJobSet0->add)(fsJobSet0, (void *)jPtr);
+                        }
+                    }
+                }
             }
+            /*We schedule migrate jobs firstly, then schedule pending jobs.
+             *So we need make sure migrated jobs and pending jobs in different 
+             *FS job set.
+             */
+            fsJobSet0 = NULL;
         }
 
         if (logclass & LC_SCHED) {
@@ -4258,7 +4356,8 @@ scheduleAndDispatchJobs(void)
                  jPtr = jPtr->back) {
 
                 if (jPtr->jStatus & JOB_STAT_RUN) {
-                    accumRunTime(jPtr, jPtr->jStatus, now_disp);
+                    TIMEVAL2(3, accumRunTime(jPtr, jPtr->jStatus, now_disp), tmpVal);
+                    timeFSUpdLoad += tmpVal;
                 }
             }
 
@@ -4273,8 +4372,11 @@ scheduleAndDispatchJobs(void)
                 return -1;
             }
             lastUpdTime = now_disp;
-            newLoadInfo = TRUE;
         }
+
+        if (logclass & LC_FAIR) { 
+            dumpFSPolicies(fname, LOG_DEBUG2);
+        } 
 
         mSchedStage |= M_STAGE_GOT_LOAD;
     }
@@ -4377,7 +4479,7 @@ scheduleAndDispatchJobs(void)
                     continue;
                 }
                 INC_CNT(PROF_CNT_getQUsable);
-                TIMEVAL(3, num = getQUsable(qp), tmpVal);
+                TIMEVAL2(3, num = getQUsable(qp), tmpVal);
                 timeGetQUsable += tmpVal;
                 if (num <= 0) {
                     continue;
@@ -4413,58 +4515,156 @@ scheduleAndDispatchJobs(void)
 
     loopCount = 0;
     ZERO_OUT_TIMERS();
+    fsJobSet0 = NULL;
 
 again:
     min = INT32_MAX;
     jPtr = NULL;
-    jR0 = NULL;
+
+    /*Now we look insight a FS queue now, after we schedule all jobs of this FS queue,
+     *then schedule other queues' jobs.
+     */
+    if (fsJobSet0) {
+        TIMEVAL2(1,jPtr = sch_fs_electJob(fsJobSet0, &attachedShareAcct), tmpVal);
+        timeFSElectAJob += tmpVal;
+
+        if (jPtr == NULL) {
+            if (logclass & (LC_SCHED | LC_FAIR)) {
+                ls_syslog(LOG_DEBUG1, "\
+%s: Fairshare Queue <%s>, timeFSElectAJob %0.2f ms.",
+                        fname,
+                        fsJobSet0->policy->name,
+                        (timeFSElectAJob - qTimeFSElectJob));
+
+                ls_syslog(LOG_DEBUG1, "\
+%s: ***** End to schedule jobs for fairshare Queue <%s> *****", fname, fsJobSet0->policy->name);
+            }
+            sch_fs_freeJobSet(fsJobSet0);
+            fsJobSet0 = NULL;
+            listRemoveEntry(jRefList, (struct _listEntry *)jR0);                                                                                              
+            FREEUP(jR0);
+        }
+    }
+
+    if (fsJobSet0 == NULL) {
+        jR0 = NULL;
+    }
+
+    /*Fetch a new job or jobset from jRefList*/
     for (jR = (struct jRef *)jRefList->back;
-         jR != (void *)jRefList;
+         jR != (void *)jRefList && !fsJobSet0;
          jR = (struct jRef *)jR->back) {
+        jPtr = NULL;
 
-        jPtr = jR->job;
-        assert(jPtr->uPtr->numPEND > 0);
+        if (jR->type == TYPE_JOB_SINGLE) {/*fcfs, or round_robin*/
+            jPtr = jR->job;
+            assert(jPtr->uPtr->numPEND > 0);
 
-        if (! (jPtr->qPtr->qAttrib & Q_ATTRIB_ROUND_ROBIN)) {
-            /* this is a fcfs queue so just dequeue the first
-             * job on the priority list and try to run it.
-             */
-            listRemoveEntry(jRefList,
+            if (! (jPtr->qPtr->qAttrib & Q_ATTRIB_ROUND_ROBIN)) {
+                /* this is a fcfs queue so just dequeue the first
+                 * job on the priority list and try to run it.
+                 */
+                listRemoveEntry(jRefList,
                             (struct _listEntry *)jR);
-            free(jR);
-            break;
-        }
+                free(jR);
+                break;
+            }
 
-        if (jPtr->uPtr->numRUN < min) {
-            /* get the job whose user has
-             * the least running jobs.
-             */
-            min = jPtr->uPtr->numRUN;
-            jR0 = jR;
-        }
+            if (jPtr->uPtr->numRUN < min) {
+                /* get the job whose user has
+                * the least running jobs.
+                */
+                min = jPtr->uPtr->numRUN;
+                jR0 = jR;
+            }
 
-        jPtr0 = jR->back->job;
-        if (jR->back == (void *)jRefList
-            || jPtr->qPtr->priority != jPtr0->qPtr->priority) {
-            /* either at the end of the list, in which case
-             * jPtr0 is bogus, or we just hit another queue
-             * so we have to give to the dispatcher the current
-             * higher priority job.
+            jPtr0 = jR->back->job;
+            if (jR->back == (void *)jRefList
+                || jPtr->qPtr->priority != jPtr0->qPtr->priority) {
+                /* either at the end of the list, in which case
+                 * jPtr0 is bogus, or we just hit another queue
+                 * so we have to give to the dispatcher the current
+                 * higher priority job.
+                 */
+                listRemoveEntry(jRefList, (struct _listEntry *)jR0);
+                jPtr = jR0->job;
+                free(jR0);
+                break;
+            }
+        } else if (jR->type == TYPE_JOB_SET) {/*fairshare*/
+            /*Start to schedule jobs from Fairshare Queue*/
+            fsJobSet0 = (struct fsQueueJobSet *)jR->job;
+
+            if (fsJobSet0 == NULL) {
+                /*If dispatch is timeout, it may cause jR is empty and kept in job list*/
+                continue;
+            }
+
+            if (logclass & (LC_SCHED | LC_FAIR)) {
+                ls_syslog(LOG_DEBUG1, "\
+%s: ***** Start to schedule jobs for fairshare Queue <%s> *****", fname, fsJobSet0->policy->name);                                                                                                                  
+            }
+
+            if (logclass & LC_FAIR) {
+                qTimeFSElectJob = timeFSElectAJob; 
+            }
+
+            /*Schedule jobs for next queue. Init jobset which caches peer pending jobs 
+             *which had been scheduled. The purpose is to reuse those jobs candidate
+             *hosts in getCandHosts().
              */
-            listRemoveEntry(jRefList, (struct _listEntry *)jR0);
-            jPtr = jR0->job;
-            free(jR0);
-            break;
+            if (fsJobSet0->status == M_STAGE_FS_INIT) {
+                initSchedPendJobSet(fsJobSet0->policy);
+                sch_fs_init(fsJobSet0->policy);
+            }
+            
+            TIMEVAL2(2, jPtr = sch_fs_electJob(fsJobSet0, &attachedShareAcct), tmpVal);
+            timeFSElectAJob += tmpVal;
+
+            if (jPtr == NULL) {
+                /*If dispatch is timeout, jobset could be empty because this func is returned in advance*/
+
+                if (logclass & (LC_SCHED | LC_FAIR)) {
+                    ls_syslog(LOG_DEBUG1,"%s: queue <%s> has no pending jobs anymore.", fname, fsJobSet0->policy->name);
+                    ls_syslog(LOG_DEBUG1, "\
+%s: ***** End to schedule jobs for fairshare Queue <%s> *****", fname, fsJobSet0->policy->name);
+                }
+
+                sch_fs_freeJobSet(fsJobSet0);
+                fsJobSet0 = NULL;
+                jR->job = NULL;
+                continue;
+            } else {
+                /*Find job, this is a valid jobset. Let us pop out and start to schedule jobs in this jobset*/
+                fsJobSet0->status = M_STAGE_FS_PROCESS;
+                jR0 = jR;
+                break;
+            }
+        } else {
+            /*cannot handle this type*/
+            continue;
         }
     } /* for (jRef = jRefList->back; ...;...) */
 
+    /*If there are only suspend jobs left, or the last job is from fs queue,
+     *we could get jPtr be NULL to tell no job anymore.
+     */
     if (jPtr == NULL) {
-        resetSchedulerSession();
-        return(0);
+        goto __END__;
     }
 
-    TIMEVAL(0, cc = scheduleAJob(jPtr, TRUE, TRUE), tmpVal);
-    dispRet = XORDispatch(jPtr, FALSE, dispatchAJob0);
+    TIMEVAL2(0, scheduleAJob(jPtr, TRUE, TRUE), tmpVal);
+    timeScheduleAJob += tmpVal;
+
+    TIMEVAL2(0, (dispRet = XORDispatch(jPtr, FALSE, dispatchAJob0)), tmpVal);
+    timeDispatchAJob += tmpVal;
+
+    /*FS job couldn't been dispatched, we try to cache it for peer jobs which may reuse candidate hosts or pending reason*/
+    if ((jPtr->qPtr->qAttrib & Q_ATTRIB_FS ) &&
+        (jPtr->jStatus & (JOB_STAT_PEND | JOB_STAT_MIG))) {
+        (*schedPendJobSet.add)(&schedPendJobSet, (void *)jPtr);
+    }
+
     if (dispRet == DISP_TIME_OUT) {
         ls_syslog(LOG_DEBUG,"\
 %s STAY_TOO_LONG 3 loopCount <%d>", fname, loopCount);
@@ -4480,12 +4680,18 @@ again:
         return -1;
     }
 
+    /*Attached job with shareAcct*/
+    if (attachedShareAcct && (jPtr->jStatus &  JOB_STAT_RUN)) {
+        attachJob2FSTree(fsJobSet0->policy, jPtr, attachedShareAcct, fname);
+    }
+
     /* if there are more jobs waiting to
      * be processed go ahead and schedule them
      */
-    if (jRefList->numEnts > 0)
+    if (jRefList->numEnts > 0 || fsJobSet0)
         goto again;
 
+__END__:
     if (logclass & LC_SCHED) {
         ls_syslog(LOG_DEBUG,"\
 %s out of pickAJob/scheduleAJob loopCount <%d>", fname, loopCount);
@@ -4519,6 +4725,9 @@ again:
 
         jR0 = jR->back;
         listRemoveEntry(jRefList, (LIST_ENTRY_T *)jR);
+        if (jR->type == TYPE_JOB_SET) {
+            sch_fs_freeJobSet(jR->job);
+        }
         free(jR);
         jR = jR0;
     }
@@ -4539,14 +4748,14 @@ checkIfJobIsReady(struct jData *jp)
     int cc;
 
 
-    TIMEVAL(2, cc = readyToDisp(jp, &jp->numAvailSlots), tmpVal);
+    TIMEVAL2(2, cc = readyToDisp(jp, &jp->numAvailSlots), tmpVal);
     timeReadyToDisp += tmpVal;
 
     if (cc) {
 
 
         if (jp->shared->jobBill.maxNumProcessors == 1) {
-            TIMEVAL(2,
+            TIMEVAL2(2,
                     jp->numSlots = cntUQSlots(jp, &jp->numAvailSlots),
                     tmpVal);
             timeCntUQSlots += tmpVal;
@@ -4602,7 +4811,7 @@ scheduleAJob(struct jData *jp, bool_t checkReady, bool_t checkOtherGroup)
             ret = checkIfCandHostIsOk(jp);
         }
     } else {
-        TIMEVAL(2, ret = getCandHosts(jp), tmpVal);
+        TIMEVAL2(2, ret = getCandHosts(jp), tmpVal);
         timeGetCandHosts += tmpVal;
         if (logclass & (LC_SCHED | LC_PEND)) {
 
@@ -4653,7 +4862,6 @@ dispatchAJob(struct jData *jp, int dontTryNextCandHost)
     int notEnoughSlot = FALSE;
     int notEnoughResource = FALSE;
     int reserved;
-
 
     qSchedDelay = QUEUE_SCHED_DELAY(jp);
     if (now_disp - jp->shared->jobBill.submitTime < qSchedDelay) {
@@ -5494,12 +5702,12 @@ queueObserverEnter(LIST_T *list, void *extra, LIST_EVENT_T *event)
     listNo = listNumber(jList);
 
     if (jobIsFirstOnSegment(jp, jList)) {
-        jp->qPtr->firstJob[listNumber(jList)] = jp;
+        jp->qPtr->firstJob[listNo] = jp;
     }
     if (jobIsLastOnSegment(jp, jList)) {
-        jp->qPtr->lastJob[listNumber(jList)] = jp;
+        jp->qPtr->lastJob[listNo] = jp;
     }
-    updateQueueJobPtr(listNumber(jList), jp->qPtr);
+    updateQueueJobPtr(listNo, jp->qPtr);
     return 0;
 }
 
@@ -5507,18 +5715,19 @@ static int
 queueObserverLeave(LIST_T *list, void *extra, LIST_EVENT_T *event)
 {
     struct jData *jp, *jList;
-    int  listNo;
+    int    listNo;
 
     jp = (struct jData *)event->entry;
     jList = (struct jData *)list;
     listNo = listNumber(jList);
+
     if (jobIsFirstOnSegment(jp, jList)) {
-        jp->qPtr->firstJob[listNumber(jList)] = nextJobOnSegment(jp, jList);
+        jp->qPtr->firstJob[listNo] = nextJobOnSegment(jp, jList);
     }
     if (jobIsLastOnSegment(jp, jList)) {
-        jp->qPtr->lastJob[listNumber(jList)] = prevJobOnSegment(jp, jList);
+        jp->qPtr->lastJob[listNo] = prevJobOnSegment(jp, jList);
     }
-    updateQueueJobPtr(listNumber(jList), jp->qPtr);
+    updateQueueJobPtr(listNo, jp->qPtr);
 
     return 0;
 }
@@ -5589,6 +5798,8 @@ jobsOnSameSegment(struct jData *j1, struct jData *j2, struct jData *jList)
 {
     if (j2->qPtr == j1->qPtr) {
         return TRUE;
+    } else if (j2->qPtr->qAttrib & Q_ATTRIB_FS || j1->qPtr->qAttrib & Q_ATTRIB_FS) {
+        return FALSE;
     } else {
         if (j2->qPtr->priority == j1->qPtr->priority) {
             return TRUE;
@@ -6554,6 +6765,9 @@ resetSchedulerSession(void)
 
         jR0 = jR->back;
         listRemoveEntry(jRefList, (LIST_ENTRY_T *)jR);
+        if (jR->type == TYPE_JOB_SET) {
+            sch_fs_freeJobSet(jR->job);    
+        }
         free(jR);
         jR = jR0;
     }
@@ -7224,4 +7438,56 @@ setLsbPtilePack(const bool_t x)
         lsbPtilePack = FALSE;
     }
 
+}
+
+static void 
+initSchedPendJobSet(struct fairsharePolicy *policy) {
+    if (schedPendJobSet.policy == NULL) {
+        h_initTab_(&(schedPendJobSet.usersTab), 23);
+        schedPendJobSet.add = addSchedPendJob2Set;
+    } else {
+        sTab stab;
+        hEnt *ent;
+    
+        ent = h_firstEnt_(&(schedPendJobSet.usersTab), &stab);
+        while(ent) {
+            listDestroy((LIST_T *)ent->hData, NULL);
+            ent = h_nextEnt_(&stab);
+        }
+        h_freeRefTab_(&(schedPendJobSet.usersTab));
+        h_initTab_(&(schedPendJobSet.usersTab), 23);
+    }
+    schedPendJobSet.policy = policy;
+    schedPendJobSet.nJobs = 0;
+} /*initSchedPendJobSet*/
+
+/*We only cache 10 pending jobs which still pend after scheduling for each user*/
+static int addSchedPendJob2Set(struct fsQueueJobSet *jobSet, void *data) {
+    struct jData *jPtr = (struct jData *)data;
+    hEnt *ent;
+    LIST_T *jList;
+    int   new;
+    struct jobFSRef *jRef;
+
+    ent = h_addEnt_(&(schedPendJobSet.usersTab), jPtr->userName, &new);
+
+    if (new) {
+        jList = listCreate("user's job reference list in fs queue");
+        ent->hData = (int *)jList;
+    } else {
+        jList = (LIST_T *)ent->hData;
+    }
+
+    jRef = (struct jobFSRef *)my_calloc(1, sizeof(struct jobFSRef), "addSchedPendJob2Set");
+    jRef->job = jPtr;
+    if (jList->numEnts < FS_MAX_CANDHOST) {
+        jobSet->nJobs++;
+    } else {
+        /*There are FS_MAX_CANDHOST jobs already, let us remove the back one, and append new on at front*/
+        LIST_ENTRY_T * tmp = listGetBackEntry(jList);
+        listRemoveEntry(jList, tmp);
+    }
+    listInsertEntryAtFront(jList, (LIST_ENTRY_T *)jRef);
+
+    return TRUE;
 }

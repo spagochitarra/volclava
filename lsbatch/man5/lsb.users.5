@@ -58,6 +58,9 @@ parentheses () or a dash - to specify the default value for an entry.
 .PP
 
 .PP
+Example 1:
+.BR
+.PP
 Begin UserGroup
 .br
 GROUP_NAME   GROUP_MEMBER
@@ -70,6 +73,23 @@ groupC       (!)
 .br
 End UserGroup
 
+.PP
+.BR
+.PP
+Example 2:
+.BR
+.PP
+Begin UserGroup
+.br
+GROUP_NAME   GROUP_MEMBER               USER_SHARES
+.br
+groupA       (user1 user2 user3)        ()
+.br
+groupB       (user4 user5)              ([user4, 2][user5, 4])
+.br
+groupC       (groupA groupB user6)      ([user6, 1][groupA, 2][default, 10])
+.br
+End UserGroup
 .PP
 
 .SH GROUP_NAME
@@ -96,12 +116,14 @@ User groups may be defined recursively but must not create a loop.
 .PP
 .PP
 \fB(\fR\fIuser_name\fR | \fIuser_group\fR ...\fB)\fR | \fB(all)\fR | \fB(!)
-\fR.PP
+\fR
+.PP
 Specify the following, all enclosed in parentheses:
 .RS
 .HP 2
 \(bu \fIuser_name\fR | \fIuser_group 
-\fR.RE
+\fR
+.RE
 
 .IP
 User and user group names, separated by spaces. User names must 
@@ -114,8 +136,8 @@ this section, or LINUX groups.
 
 .RS
 .HP 2
-\(bu \fBall
-\fR.RE
+\(bu \fBall\fR
+.RE
 
 .IP
 The reserved name all specifies all users in the cluster. 
@@ -123,13 +145,59 @@ The reserved name all specifies all users in the cluster.
 
 .RS
 .HP 2
-\(bu \fB!
-\fR.RE
+\(bu \fB!\fR
+.RE
 
 .IP
 The exclamation mark ! specifies that the group membership 
 should be retrieved via egroup. 
-
+.SH USER_SHARES
+.BR
+.PP
+.PP
+Optional. Enables hierarchical fairshare and defines a share tree for users and user groups.
+.PP
+By default, when resources are assigned collectively to a group, the group members compete
+for the resources according to FCFS scheduling. You can use hierarchical fairshare to further
+divide the shares among the group members.
+.BR
+.PP
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fB([\fR\fIuser\fR\, \fInumber_shares\fR\fB]......)\fR
+.BR
+.PP
+.PP
+Specify the arguments as follows:
+.PP
+.HP 2
+\(bu Enclose the list in parentheses, even if you do not specify any user share assignments.
+.PP
+.HP 2
+\(bu Enclose each user share assignment in square brackets.
+.PP
+.HP 2
+\fBuser\fR: Specify users or user groups. You can assign the shares to:
+.RS
+.HP 2
+.PP 
+\(bu A single user (specify user name).
+.HP 2
+.PP
+\(bu Users in a group (specify group name).
+.HP 2
+.PP
+\(bu Users not included in any other share assignment, individually (specify the keyword default)
+or collectively (specify the keyword others).
+.RE
+.PP
+.PP
+\fBnumber_shares\fR: Specify a positive integer representing the number of shares of the cluster
+resources assigned to the users. The number of shares assigned to each user is only meaningful
+when you compare it to the shares assigned to other users or to the total number of shares. 
 .SH User Section
 .BR
 .PP
@@ -145,7 +213,7 @@ jobs are waiting.
 .BR
 .PP
 .PP
-All three fields are mandatory: USER_NAME, MAX_JOBS, JL/P.
+The field USER_NAME is mandatory, while all other fields are optional.
 .PP
 You must specify a dash (-) to indicate the default value (unlimited) if 
 a user or user group is specified. Fields cannot be left blank.
@@ -156,17 +224,17 @@ a user or user group is specified. Fields cannot be left blank.
 .PP
 Begin User
 .br
-USER_NAME   MAX_JOBS   JL/P
+USER_NAME   MAX_JOBS   JL/P   MAX_PEND_JOBS   MAX_PEND_SLOTS
 .br
-user1       10          -
+user1       10          -         -               -
 .br
-user2        4          1
+user2        4          1         20              40
 .br
-user3        -          2
+user3        -          2         -               -
 .br
-groupA@     10          1
+groupA@     10          1         10              10
 .br
-default      6          1
+default      6          1         10              20
 .br
 End User
 
@@ -194,13 +262,13 @@ member in the subgroup recursively.
 .BR
 .PP
 .PP
-Per-user or per-group job slot limit for the cluster. Total number of job 
+Optional. Per-user or per-group job slot limit for the cluster. Total number of job 
 slots that each user or user group can use in the cluster.
 .SH JL/P
 .BR
 .PP
 .PP
-Per processor job slot limit per user or user group.
+Optional. Per processor job slot limit per user or user group.
 .PP
 Total number of job slots that each user or user group can use per 
 processor. This job slot limit is configured per processor so that 
@@ -217,12 +285,12 @@ to 2 job slots at any time. On a uniprocessor machine, the user can use
 .BR
 .PP
 .PP
-Per-user or per-group pending job limit.
+Optional. Per-user or per-group pending job limit.
 .SH MAX_PEND_SLOTS
 .BR
 .PP
 .PP
-Per-user or per-group pending job slot limit.
+Optional. Per-user or per-group pending job slot limit.
 .PP
 .SH SEE ALSO
 .BR

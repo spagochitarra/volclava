@@ -1,7 +1,7 @@
 .ds ]W %
 .ds ]L
 .nh
-.TH lsb.queues 5 "Lava Version 1.0 - Sept 2007"
+.TH lsb.queues 5 "Volclava Version 1.0 - June 2025"
 .br
 .SH NAME
 \fBlsb.queues\fR
@@ -84,7 +84,8 @@ Undefined.
 .PP
 .PP
 \fBCORELIMIT = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -139,6 +140,33 @@ in lsf.conf.
 .PP
 .PP
 Unlimited
+.SH CPU_TIME_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fB CPU_TIME_FACTOR = \fR \fInumber\fR
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. CPU time weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this factor determines
+the relative importance of the cumulative CPU time used by a user’s jobs.
+.PP
+If undefined, the cluster-wide value from the lsb.params parameter of the same
+name is used.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+0.7
 .SH DATALIMIT
 .BR
 .PP
@@ -147,7 +175,8 @@ Unlimited
 .PP
 .PP
 \fBDATALIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -174,7 +203,8 @@ Unlimited
 .PP
 .PP
 \fBDEFAULT_HOST_SPEC =\fR \fIhost_name | host_model
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -196,7 +226,8 @@ Undefined.
 .PP
 .PP
 \fBDESCRIPTION =\fR \fItext
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -238,7 +269,8 @@ Undefined (always open).
 .PP
 .PP
 \fBEXCLUSIVE = Y\fR | \fBN
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -246,6 +278,73 @@ If Y, specifies an exclusive queue.
 .PP
 Jobs submitted to an exclusive queue with \fBbsub -x\fR will only be 
 dispatched to a host that has no other Lava jobs running.
+.SH FAIRSHARE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBFAIRSHARE = USER_SHARES\fR[[\fIuser\fR, \fInumber_shares\fR] ...]
+.SS Description
+.BR
+.PP
+.PP
+.HP 2
+\(bu Specify at least one user share assignment.
+.HP 2
+\(bu Enclose the list in square brackets, and enclose each user share
+assignment in square brackets.
+.HP 2
+\(bu \fIuser\fR: specify users who are also configured to use queue. You
+can assign the shares to the following types of users:
+.RS
+.HP 2
+\(bu A single user (specify \fIuser_name\fR).
+.HP 2
+\(bu Users in a group, individually (specify \fIgroup_name@\fR) or or collectively
+(specify \fIgroup_name\fR).
+.HP 2
+\(bu Users not included in any other share assignment, individually (specify the
+keyword default) or collectively (specify the keyword others)
+.RS
+.HP 2
+\(bu By default, when resources are assigned collectively to a group, the group
+members compete for the resources on FCFS policy.
+.HP 2
+\(bu When resources are assigned to members of a group individually, the share
+assignment is recursive. Members of the group and of all subgroups always compete
+for the resources according to FCFS scheduling, regardless of hierarchical fairshare
+policies.
+.RE
+.RE
+.RE
+.HP 2
+\(bu \fInumber_shares\fR: Specify a positive integer that represents the number of
+Specify a positive integer that represents the number of user.
+.RS
+.HP 2
+\(bu The number of shares that are assigned to each user is only meaningful when
+you compare it to sibling users who also have share assignment or to the total
+number of shares. The total number of shares is just the sum of all the shares
+that are assigned in each share assignment.
+.RE
+.BR
+.PP
+Enables queue-level user-based fairshare and specifies optionl share assignments.
+If share assignments are specified, only users with share assignments can submit
+jobs to the queue.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+Not defined. Fairshare policy is disabled.
+.BR
+.PP
+.PP
 .SH FILELIMIT
 .BR
 .PP
@@ -254,7 +353,8 @@ dispatched to a host that has no other Lava jobs running.
 .PP
 .PP
 \fBFILELIMIT =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -265,6 +365,33 @@ belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
 .PP
 .PP
 Unlimited
+.SH HIST_HOURS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBHIST_HOURS = \fR\fIhours\fR
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Determines a rate of decay for cumulative CPU time.
+.PP
+To calculate dynamic user priority, LSF scales the actual CPU time using a decay factor,
+so that 1 hour of recently-used time is equivalent to 0.1 hours after the specified
+number of hours has elapsed.
+.PP
+When HIST_HOURS=0, CPU time is not decayed.
+.PP
+If undefined, the cluster-wide value from the lsb.params parameter of the same name is
+used.
+.SS Default
+.BR
+.PP
+.PP
+5
 .SH HJOB_LIMIT
 .BR
 .PP
@@ -273,7 +400,8 @@ Unlimited
 .PP
 .PP
 \fBHJOB_LIMIT\fR \fB=\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -410,7 +538,8 @@ preference).
 .PP
 .PP
 \fBIGNORE_DEADLINE = Y
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -424,7 +553,8 @@ of deadline contraints).
 .PP
 .PP
 \fBINTERACTIVE = NO\fR | \fBONLY
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -446,7 +576,8 @@ jobs).
 .PP
 .PP
 \fBJOB_ACCEPT_INTERVAL =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -675,7 +806,8 @@ Undefined.
 .PP
 .PP
 \fBMEMLIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -765,7 +897,8 @@ Unlimited
 .PP
 .PP
 \fBMIG =\fR \fIminutes
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -793,7 +926,8 @@ Undefined (no automatic job migration).
 .PP
 .PP
 \fBNEW_JOB_SCHED_DELAY =\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -832,7 +966,8 @@ turns.
 .PP
 .PP
 \fBNICE =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -857,7 +992,8 @@ batch or interactive jobs. See the \fBnice\fR(\fB1\fR) manual page for more deta
 .PP
 .PP
 \fBPJOB_LIMIT =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -879,7 +1015,8 @@ Unlimited
 .PP
 .PP
 \fBPOST_EXEC = \fR\fIcommand
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -919,7 +1056,8 @@ No post-execution commands
 .PP
 .PP
 \fBPRE_EXEC = \fR\fIcommand
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -969,7 +1107,8 @@ No pre-execution commands
 .PP
 .PP
 \fBPROCESSLIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -995,7 +1134,8 @@ Unlimited
 .PP
 .PP
 \fBPROCLIMIT =\fR [\fIminimum_limit\fR [\fIdefault_limit\fR]] \fImaximum_limit
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1039,7 +1179,8 @@ Unlimited, the default number of slots is 1.
 .PP
 .PP
 \fBQJOB_LIMIT\fR \fB=\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1058,7 +1199,8 @@ Unlimited
 .PP
 .PP
 \fBQUEUE_NAME =\fR \fIstring
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1073,6 +1215,13 @@ cannot specify the reserved name default.
 .PP
 You must specify this parameter to define a queue. The default queue 
 automatically created by Lava is named default.
+.PP
+.SH REQUEUE_EXIT_VALUES
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
 .PP
 \fBREQUEUE_EXIT_VALUES\fR \fB=\fR [\fIexit_code \fR...] [\fBEXCLUDE(\fR\fIexit_code ...\fR\fB)\fR]
 .SS Description
@@ -1124,7 +1273,8 @@ Undefined (jobs in this queue are not requeued)
 .PP
 .PP
 \fBRERUNNABLE = yes\fR | \fBno 
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1142,7 +1292,8 @@ no
 .PP
 .PP
 \fBRES_REQ =\fR \fIres_req
-\fR.SS Description 
+\fR
+.SS Description 
 .BR
 .PP
 .PP
@@ -1198,6 +1349,68 @@ load on the host satisfies the specified conditions.
 If RESUME_COND is not defined, then the loadSched thresholds are 
 used to control resuming of jobs. The loadSched thresholds are 
 ignored, when resuming jobs, if RESUME_COND is defined.
+.SH RUN_JOB_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRUN_JOB_FACTOR = \fR\fInumber\fR
+.BR
+.PP
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Job slots weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this factor
+determines the relative importance of the number of job slots reserved
+and in use by a user.
+.PP
+If undefined, the cluster-wide value from the lsb.params paramter of
+the same name is used.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+3.0
+.SH RUN_TIME_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRUN_TIME_FACTOR = \fR \fInumber\fR
+.BR
+.PP
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Run time weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this
+factor determines the relative importance of the total run time
+of a user’s running jobs.
+.PP
+If undefined, the cluster-wide value from the lsb.params paramter
+of the same name is used.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+0.7
 .SH RUN_WINDOW
 .BR
 .PP
@@ -1269,7 +1482,8 @@ Unlimited
 .PP
 .PP
 \fBSLOT_RESERVE = MAX_RESERVE_TIME[\fR\fIinteger\fR\fB]
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1306,7 +1520,8 @@ Undefined (no processor reservation)
 .PP
 .PP
 \fBSTACKLIMIT =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1371,7 +1586,8 @@ time.
 .PP
 .PP
 \fBSWAPLIMIT =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -1439,7 +1655,8 @@ End Queue
 .PP
 .PP
 \fBUJOB_LIMIT\fR \fB=\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
