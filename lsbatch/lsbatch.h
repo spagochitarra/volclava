@@ -89,6 +89,7 @@
 #define Q_ATTRIB_EXCLUSIVE        0x01
 #define Q_ATTRIB_DEFAULT          0x02
 #define Q_ATTRIB_ROUND_ROBIN      0x04
+#define Q_ATTRIB_FS               0x08
 #define Q_ATTRIB_BACKFILL         0x80
 #define Q_ATTRIB_HOST_PREFER      0x100
 #define Q_ATTRIB_NO_INTERACTIVE   0x800
@@ -456,11 +457,6 @@
 #define    LSBE_BAD_RLIMIT          134
 #define    LSBE_NUM_ERR             134
 
-
-#define PREPARE_FOR_OP          1024
-#define READY_FOR_OP            1023
-
-
 #define  SUB_JOB_NAME       0x01
 #define  SUB_QUEUE          0x02
 #define  SUB_HOST           0x04
@@ -692,6 +688,7 @@ struct jobInfoEnt {
     int     counter[NUM_JGRP_COUNTERS];
     u_short port;
     int     jobPriority;
+    char    *chargedSAAP;
 };
 
 struct userInfoEnt {
@@ -718,6 +715,12 @@ struct userInfoEnt {
 
 #define LSB_SIG_NUM               23
 
+struct fsFactors {
+    float cpuTimeFactor;      
+    float runTimeFactor;      
+    float runJobFactor;       
+    float histHours;          
+};
 
 struct queueInfoEnt {
     char   *queue;
@@ -769,7 +772,22 @@ struct queueInfoEnt {
     int    defLimits[LSF_RLIM_NLIMITS];
     int    minProcLimit;
     int    defProcLimit;
+    char   *userShares;
+    struct shareAcctInfoEnt *shareAcctTree;
+    struct fsFactors fsFactors;
 };
+
+struct shareAcctInfoEnt {
+    char  *name;
+    int    nChildShareAcct;
+    struct shareAcctInfoEnt *childShareAccts; 
+    int    share;
+    float  priority;
+    int    numStartJobs;
+    float  cpuTime;
+    float  runTime;
+};
+
 
 #define ACT_NO              0
 #define ACT_START           1
@@ -806,6 +824,10 @@ struct hostInfoEnt {
 #define MAX_JOBID_LOW   999999
 #define MAX_JOBID_HIGH 9999999
 #define DEF_SUB_TRY_INTERVAL 60
+#define DEF_CPU_TIME_FACTOR 0.7
+#define DEF_RUN_TIME_FACTOR 0.7
+#define DEF_RUN_JOB_FACTOR  3.0
+#define DEF_HIST_HOURS      5
 
 struct parameterInfo {
     char *defaultQueues;
@@ -848,6 +870,10 @@ struct parameterInfo {
     int  maxPendJobs;
     int  maxPendSlots;
     int  defaultLimitIgnoreUserGroup;
+    float cpuTimeFactor;
+    float runTimeFactor;
+    float runJobFactor;
+    float histHours;
 };
 
 
@@ -862,10 +888,19 @@ struct loadInfoEnt {
 #define GRP_RECURSIVE     0x8
 #define GRP_ALL           0x10
 #define GRP_SHARES        0x40
+struct userShares {
+    char  *name;
+    int    share;
+};
 
 struct groupInfoEnt {
     char *group;
     char *memberList;
+#define GRP_IS_UGRP            0x01 /**< Group is a user group. */
+#define GRP_IS_HGRP            0x02 /**< Group is a host group. */
+    int  options;
+    int numUserShares;
+    struct userShares *userShares;
 };
 
 struct runJobRequest {
@@ -880,7 +915,7 @@ struct runJobRequest {
 };
 
 #define REQUEUE_DONE   0x1
-#define REQUEUE_EXIT   0x2
+#define REQUEUE_EXIT   0x2 
 #define REQUEUE_RUN    0x4
 
 struct jobrequeue {

@@ -1,4 +1,5 @@
-/* $Id: mbd.jarray.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: mbd.jarray.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,10 +21,11 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "mbd.h"
 #include <dirent.h>
 #include <malloc.h>
+
+#include "mbd.h"
+#include "mbd.fairshare.h"
 
 #define NL_SETN		10	
 
@@ -299,8 +301,10 @@ handleNewJobArray(struct jData *jarray, struct idxList *idxList, int maxJLimit)
     ARRAY_DATA(jarray->jgrpNode)->maxJLimit = maxJLimit;
 
     
-    if (mSchedStage != M_STAGE_REPLAY)
+    if (mSchedStage != M_STAGE_REPLAY) {
         log_newjob(jarray);
+        updAliveUserInFSTree(jarray->qPtr, jarray->userName);
+    }
 
     
     if (mSchedStage != M_STAGE_REPLAY) {
@@ -333,6 +337,7 @@ handleNewJobArray(struct jData *jarray, struct idxList *idxList, int maxJLimit)
     ARRAY_DATA(jarray->jgrpNode)->counts[getIndexOfJStatus(jarray->nextJob->jStatus)] = numJobs;
     ARRAY_DATA(jarray->jgrpNode)->counts[JGRP_COUNT_NJOBS] = numJobs;
     updJgrpCountByOp(jarray->jgrpNode, 1);
+
     return;
 } 
 

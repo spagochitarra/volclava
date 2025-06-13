@@ -18,6 +18,7 @@
  */
 
 #include "mbd.h"
+#include "mbd.fairshare.h"
 
 #define NL_SETN         10
 
@@ -314,6 +315,9 @@ init_log(void)
                 nextJobId = 1;
         }
     }
+
+    TIMEIT(0, recoverShareAccts(), "init_log/rscoverShareAccts()");
+
     if (!first) {
 
         if (switch_log() == -1)

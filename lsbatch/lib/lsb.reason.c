@@ -419,12 +419,7 @@ lsb_pendreason(int numReasons, int *rsTb, struct jobInfoHead *jInfoH,
                                   fname, hostId, reason, i, reasonTb[i]);
 
         if (jInfoH && jInfoH->numHosts != 0 && jInfoH->hostNames != NULL) {
-            if (!hostId) {
-                // for single node cluster
-                strcpy(hostList, jInfoH->hostNames[hostId]);
-            } else {
-                strcpy (hostList, jInfoH->hostNames[hostId-1]);
-            }
+           strcpy(hostList, jInfoH->hostNames[hostId]);
         }
         else
             num = 1;
@@ -444,14 +439,10 @@ lsb_pendreason(int numReasons, int *rsTb, struct jobInfoHead *jInfoH,
                                        fname, j, hostIdJ);
             reasonTb[j] = 0;
             if (jInfoH && jInfoH->numHosts != 0 && jInfoH->hostNames != NULL) {
-                if (!hostIdJ) {
-                    sprintf(hostList, "%s, %s", hostList, jInfoH->hostNames[hostIdJ]);
-                } else {
-                    sprintf(hostList, "%s, %s", hostList,
-                            jInfoH->hostNames[hostIdJ-1]);
-                }
-            } else
+               sprintf(hostList, "%s, %s", hostList, jInfoH->hostNames[hostIdJ]);
+            } else {
                 num++;
+            }
         }
         if (reason >= PEND_HOST_LOAD
 	    && reason < PEND_HOST_QUE_RUSAGE) {	    

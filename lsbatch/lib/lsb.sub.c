@@ -3987,7 +3987,7 @@ static int
 parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
 {
 #define INCREASE 40
-    int parsing = TRUE, i;
+    int i;
     static char **argBuf = NULL, *key;
     static char fname[] = "parseLine_";
     static int argNum = 0;
@@ -4023,7 +4023,6 @@ parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
         line += strlen(key);
         SKIPSPACE(line);
         if (*line != '-') {
-            parsing = FALSE;
             return (-1);
         }
         while (TRUE) {
@@ -4812,7 +4811,6 @@ static int
 readOptFile(char *filename, char *childLine)
 {
     char *p, *sp, *sline, *start;
-    int lineLen;
     FILE *fp;
 
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -4820,7 +4818,6 @@ readOptFile(char *filename, char *childLine)
 		  "fopen", filename);
         return(-1);
     }
-    lineLen = 0;
 
     while ((sline = getNextLine_(fp, FALSE)) != NULL) {
         sp = sline;
@@ -4844,7 +4841,6 @@ readOptFile(char *filename, char *childLine)
 
 	            *sp = '\0';
                 sp = sline;
-		lineLen = strlen(sp);
 		if ( childLine[0] == '\0' )
 		    strcpy(childLine, sline);
 		else
@@ -5595,11 +5591,10 @@ char *extractStringValue(char *line)
 int processXFReq(char *key,char *line,struct submit *jobSubReq)
 {
     static char fname[]="processXFRequest";
-    int validKey,v;
+    int v;
     char *sValue;
 
     if(strcmp(key,"LSB_SUB_OTHER_FILES")==0) {
-	validKey=1;
 
 	if (stringIsToken(line,"SUB_RESET")) {
 	    free(jobSubReq->xf);
@@ -5651,7 +5646,7 @@ int processXFReq(char *key,char *line,struct submit *jobSubReq)
 	    return -1;
 	}
 
-	v=atoi(xfSeq);validKey=1;
+	v=atoi(xfSeq);
 	if (v<jobSubReq->nxf) {
 	    char op[20];
 	    char *txt,*srcf;

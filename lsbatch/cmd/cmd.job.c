@@ -97,17 +97,24 @@ prtHeader(struct jobInfoEnt *job, int prt_q, int tFormat)
     }
 
     if (job->submit.options2 & (SUB2_JOB_CMD_SPOOL)) {
-	if (tFormat)
-	    sprintf(prline, " %s(Spooled) <%s>", I18N_Command, job->submit.command);
-	else
-	    sprintf(prline, " %s(Spooled) <%s>\n", I18N_Command, job->submit.command);
+        sprintf(prline, " %s(Spooled) <%s>", I18N_Command, job->submit.command);
     } else {
-	if (tFormat)
-	    sprintf(prline, " %s <%s>", I18N_Command, job->submit.command);
-	else
-	    sprintf(prline, " %s <%s>\n", I18N_Command, job->submit.command);
+	sprintf(prline, " %s <%s>", I18N_Command, job->submit.command);
     }
     printf("%s", prline);
+
+    if (job->chargedSAAP && strlen(job->chargedSAAP) > 0) {
+        if (tFormat) {
+            sprintf(prline, ", %s <%s>", I18N_SAAP, job->chargedSAAP);
+        } else {
+            sprintf(prline, ", %s <%s>\n", I18N_SAAP, job->chargedSAAP);
+        }
+        printf("%s", prline);
+    } else {
+        if (!tFormat) {
+            printf("\n");
+        }
+    }
 }
 
 
@@ -1226,17 +1233,24 @@ prtHeaderUF(struct jobInfoEnt *job, int prt_q, int tFormat)
     }
 
     if (job->submit.options2 & (SUB2_JOB_CMD_SPOOL)) {
-        if (tFormat)
-            sprintf(prline, " %s(Spooled) <%s>", I18N_Command, job->submit.command);
-        else
-            sprintf(prline, " %s(Spooled) <%s>\n", I18N_Command, job->submit.command);
+        sprintf(prline, " %s(Spooled) <%s>", I18N_Command, job->submit.command);
     } else {
-        if (tFormat)
-            sprintf(prline, " %s <%s>", I18N_Command, job->submit.command);
-        else
-            sprintf(prline, " %s <%s>\n", I18N_Command, job->submit.command);
+        sprintf(prline, " %s <%s>", I18N_Command, job->submit.command);
     }
-    printf("%s\n", prline);
+    printf("%s", prline);
+
+    if (job->chargedSAAP && strlen(job->chargedSAAP) > 0) {
+        if (tFormat) {
+            sprintf(prline, ", %s <%s>", I18N_SAAP, job->chargedSAAP);
+        } else {
+            sprintf(prline, ", %s <%s>\n", I18N_SAAP, job->chargedSAAP);
+        }
+        printf("%s", prline);
+    } else {
+        if (!tFormat) {
+            printf("\n");
+        }
+    }
 }
 
 void

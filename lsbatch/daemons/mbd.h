@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#ifndef MBD_H
+#define MBD_H
 
 #include "../lsbatch.h"
 #include "daemonout.h"
@@ -335,7 +337,7 @@ struct jData {
     int*   inEligibleGroups;
     int numSlotsReserve;
     int numAvailSlotsReserve;
-
+    struct shareAcct * sa;  /*refer to shareAcct of fairshare tree in global policies*/
 };
 
 
@@ -584,6 +586,13 @@ struct qData {
     char   *chkpntDir;
     int    minProcLimit;
     int    defProcLimit;
+    char   *userShares;
+    int    posId; /*For fcfs queue, posId is the smallest index
+                   *of the queues which has the same priority;
+                   *for fs queue, posId is queueId.
+                   */
+    struct fairsharePolicy * policy;
+    struct fsFactors fsFactors;
 };
 
 
@@ -655,11 +664,64 @@ struct sbdNode {
 
 extern struct sbdNode sbdNodeList;
 
+struct fairsharePolicy
+{
+    char             *name;        /*queue name*/
+    struct qData     *qPtr;       /*pointer to qData*/
+    struct shareAcct *root;        /*FS tree root node*/
+    LIST_T           *userList;    /*all leaf nodes in FS tree which are in shareAcctEntry type*/
+    hTab              userTab;     /*leaf users's hTab. key:userName, value:the list of shareAcct which have the same name*/ 
+};
+
+struct shareAcct {
+    struct shareAcct *forw;
+    struct shareAcct *back;
+    char             *name;
+    char             *path;
+    int               share;
+#define FS_IS_DEFAULT      0x00000001      /*user_shares is 'default'*/
+#define FS_ALL_DEFAULT     0x00000002      /*ug member is all, user_shares has 'default'*/
+#define FS_LEAF_GROUP      0x00000004      /*leaf node is a user group*/
+#define FS_SKIPABLE        0x00000008      /*The node could be skipped during electing jobs*/
+    int   flags;
+    struct fairsharePolicy *policy;        /*point to policy*/
+    struct shareAcct *parent;              /*point upper level shareAcct*/
+    struct shareDistributePolicy *sharePolicy; /*child who assigned shares*/
+    float             priority;          /*dynamic priority*/
+    int               numStartJobs;      /*the number of started jobs*/
+    float             newUsedCpuTime;    /*cputime which hasn't exceeded recent decay duration.*/
+    float             histCpuTime;       /*cputime which has been decayed.*/
+    int               runTime;           /*started jobs's runtime*/
+    int               numSkippedChild;   /*used when electing job from FS tree*/
+    hEnt              *jListEntCache;    /*cache job reference in jobSet*/
+};
+
+struct shareAcctRef {
+    struct shareAcctRef *forw;
+    struct shareAcctRef *back;
+    struct shareAcct    *sacct;
+};
+
+struct shareDistributePolicy {
+    struct shareAcct *holder;     /*back pointer of the corresponding shareAcct*/
+#define FS_OUT_OTHERS     0x00000001  /*the usersTab records users who are outside of 'others'*/
+#define FS_IN_OTHERS      0x00000002  /*the usersTab records users who are inside of 'others'*/
+    int               flags;
+    LIST_T           *sAcctList;  /*Child nodes which has own user_share*/
+    hTab             *usersTab;    /*Users who share 'user_share'*/
+};
+
+struct ugrpAttrs {            
+    int      numUserShares;   
+    struct userShares  *userShares;
+};
+
 struct gData {
     char     *group;
     hTab     memberTab;
     int      numGroups;
     struct   gData *gPtr[MAX_GROUPS];
+    struct   ugrpAttrs *ugrpAttrs;   /*If gData stand for usergroup, then this field will be used.*/
 };
 
 typedef enum {
@@ -864,6 +926,8 @@ extern struct hTab            jgrpIdHT;
 extern struct gData           *usergroups[];
 extern struct gData           *hostgroups[];
 extern struct profileCounters counters[];
+extern struct hTab            policies;
+extern struct hTab            jobSATab;
 extern char                   errstr[];
 extern int                    debug;
 extern int                    errno;
@@ -888,6 +952,11 @@ extern int                    acctArchiveInDays;
 extern int                    acctArchiveInSize;
 extern int                    resourcePerTask;
 extern int                    lsbModifyAllJobs;
+extern float                  cpuTimeFactor;
+extern float                  runTimeFactor;
+extern float                  runJobFactor;
+extern float                  histHours;
+extern float                  clsDecay;
 
 
 extern int                    numofqueues;
@@ -1247,6 +1316,8 @@ extern char *               catGnames(struct gData *);
 extern struct gData *       getGroup(int, char *);
 extern char                 gMember(char *word,
                                     struct gData *);
+extern char                 gMemberForShare(char *word,
+                                    struct gData *);
 extern char                 gDirectMember(char *,
                                           struct gData *);
 extern int                  countEntries(struct gData *, char );
@@ -1306,6 +1377,8 @@ extern struct hostAcct *    addHAcct(struct hTab **, struct hData *,
                                       int, int, int, int);
 extern void                 checkQusable(struct qData *, int, int);
 extern void                 updHostLeftRusageMem(struct jData *, int);
+extern void                 recoverShareAccts();
+extern void                 updJobSAcctForSwitch(struct jData *, struct qData *, struct qData *);
 extern int                  minit(int);
 extern struct qData *       lostFoundQueue(void);
 extern void                 freeHData(struct hData *);
@@ -1514,3 +1587,4 @@ extern struct timeWindow *newTimeWindow (void);
 extern void freeTimeWindow(struct timeWindow *);
 extern void updateTimeWindow(struct timeWindow *);
 extern inline int numofhosts(void);
+#endif

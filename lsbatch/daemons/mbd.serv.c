@@ -42,7 +42,6 @@ static void addPendSigEvent(struct sbdNode *sbdPtr);
 static void freeJobHead (struct jobInfoHead *);
 static void freeJobInfoReply (struct jobInfoReply *);
 static void freeShareResourceInfoReply (struct  lsbShareResourceInfoReply *);
-static int xdrsize_QueueInfoReply(struct queueInfoReply * );
 extern void closeSession(int);
 
 int
@@ -216,9 +215,9 @@ do_jobInfoReq(XDR *xdrs,
     if (jobInfoReq.options & HOST_NAME) {
         jobInfoHead.hostNames = my_calloc(numofhosts(),
                                           sizeof(char *), fname);
-        for (hPtr = (struct hData *)hostList->back;
+        for (hPtr = (struct hData *)hostList->forw;
              hPtr != (void *)hostList;
-             hPtr = (struct hData *)hPtr->back) {
+             hPtr = (struct hData *)hPtr->forw) {
             jobInfoHead.hostNames[i] = hPtr->host;
             ++i;
         }
@@ -464,6 +463,7 @@ packJobInfo(struct jData * jobData,
     jobInfoReply.endTime = jobData->endTime;
     jobInfoReply.cpuTime = jobData->cpuTime;
     jobInfoReply.numToHosts = jobData->numHostPtr;
+    jobInfoReply.chargedSAAP = (jobData->sa ? jobData->sa->path : "");
 
     if (jobData->jStatus & JOB_STAT_UNKWN)
         jobInfoReply.status = JOB_STAT_UNKWN;
@@ -1401,44 +1401,6 @@ do_userInfoReq(XDR * xdrs,
     FREEUP(reply_buf);
     FREEUP(userInfoReply.users);
     return 0;
-}
-
-
-int
-xdrsize_QueueInfoReply(struct queueInfoReply * qInfoReply)
-{
-    int len;
-    int i;
-
-    len = 0;
-
-    for (i = 0; i < qInfoReply->numQueues; i++) {
-        len += getXdrStrlen(qInfoReply->queues[i].description)
-            + getXdrStrlen(qInfoReply->queues[i].windows)
-            + getXdrStrlen(qInfoReply->queues[i].userList)
-            + getXdrStrlen(qInfoReply->queues[i].hostList)
-            + getXdrStrlen(qInfoReply->queues[i].defaultHostSpec)
-            + getXdrStrlen(qInfoReply->queues[i].hostSpec)
-            + getXdrStrlen(qInfoReply->queues[i].windowsD)
-            + getXdrStrlen(qInfoReply->queues[i].admins)
-            + getXdrStrlen(qInfoReply->queues[i].preCmd)
-            + getXdrStrlen(qInfoReply->queues[i].postCmd)
-            + getXdrStrlen(qInfoReply->queues[i].prepostUsername)
-            + getXdrStrlen(qInfoReply->queues[i].requeueEValues)
-            + getXdrStrlen(qInfoReply->queues[i].resReq)
-            + getXdrStrlen(qInfoReply->queues[i].resumeCond)
-            + getXdrStrlen(qInfoReply->queues[i].stopCond)
-            + getXdrStrlen(qInfoReply->queues[i].jobStarter)
-            + getXdrStrlen(qInfoReply->queues[i].suspendActCmd)
-            + getXdrStrlen(qInfoReply->queues[i].resumeActCmd)
-            + getXdrStrlen(qInfoReply->queues[i].terminateActCmd)
-            + getXdrStrlen(qInfoReply->queues[i].chkpntDir);
-    }
-    len += ALIGNWORD_(sizeof(struct queueInfoReply)
-                      + qInfoReply->numQueues * (sizeof(struct queueInfoEnt)+ MAX_LSB_NAME_LEN + qInfoReply->nIdx*2*sizeof(float))
-                      + qInfoReply->numQueues * NET_INTSIZE_);
-
-    return len;
 }
 
 int

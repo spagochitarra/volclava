@@ -276,6 +276,8 @@
      (I18N_m(1422,"Closed"))         /*catgets1422*/
 #define I18N_client \
      (I18N_m(1423,"client"))       /*catgets1423*/
+#define I18N_SAAP \
+     (I18N_m(1424,"Share group charged")) /*catgets1424*/ 
 
 #define I18N_Done \
      (I18N_m(1600,"Done"))        /*catgets1600*/
@@ -826,9 +828,19 @@
 #define I18N_MPJOBS \
      (I18N_m(5017,"MPJOBS"))         /*catgets5017*/
 #define I18N_PJOBS \
-     (I18N_m(5018,"PJOBS"))         /*catgets5017*/
+     (I18N_m(5018,"PJOBS"))         /*catgets5018*/
 #define I18N_MPEND \
-     (I18N_m(5019,"MPEND"))         /*catgets5017*/
+     (I18N_m(5019,"MPEND"))         /*catgets5019*/
+#define I18N_SHARES \
+     (I18N_m(5020, "SHARES"))      /*catgets5020*/
+#define I18N_STARTED \
+     (I18N_m(5021, "STARTED"))      /*catgets5021*/
+#define I18N_CPU_TIME \
+     (I18N_m(5022, "CPU_TIME"))      /*catgets5022*/
+#define I18N_RUN_TIME \
+     (I18N_m(5023, "RUN_TIME"))      /*catgets5023*/
+#define I18N_PRIORITY \
+     (I18N_m(5024, "PRIORITY"))      /*catgets5024*/
 
 #define I18N_View \
      (I18N_m(5200,"View"))        /*catgets5200*/

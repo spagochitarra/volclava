@@ -1,7 +1,7 @@
 .ds ]W %
 .ds ]L
 .nh
-.TH lsb.params 5 "Lava Version 1.0 - Sept 2007"
+.TH lsb.params 5 "Volclava Version 1.0 - June 2025"
 .br
 .SH NAME
 \fBlsb.params\fR
@@ -40,7 +40,8 @@ corresponding keywords. The valid keywords for this section are:
 .PP
 .PP
 \fIdays
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -68,7 +69,8 @@ Undefined (no limit to the age of lsb.acct).
 .PP
 .PP
 \fIkilobytes
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -96,7 +98,8 @@ Undefined (no limit to the size of lsb.acct).
 .PP
 .PP
 \fBCLEAN_PERIOD\fR \fB=\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -112,6 +115,33 @@ ago, use the \fBbhist\fR command.
 .PP
 .PP
 3600 (1 hour).
+.SH CPU_TIME_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fB CPU_TIME_FACTOR = \fR \fInumber\fR
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. CPU time weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this factor determines
+the relative importance of the cumulative CPU time used by a user’s jobs.
+.PP
+This parameter can also be set for an individual queue in lsb.queues. If defined,
+the queue value takes precedence.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+0.7
 .SH DEFAULT_HOST_SPEC
 .BR
 .PP
@@ -120,7 +150,8 @@ ago, use the \fBbhist\fR command.
 .PP
 .PP
 \fBDEFAULT_HOST_SPEC =\fR \fIhost_name | host_model
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -134,6 +165,34 @@ time normalization host is specified at the queue or job level.
 .PP
 .PP
 Undefined
+.SH DEFAULT_LIMIT_IGNORE_USER_GROUP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_LIMIT_IGNORE_USER_GROUP=y\fR|\fBY\fR|\fBn\fR|\fBN
+.SS Description
+.BR
+.PP
+.PP
+Disable "default" user affect usergroup default configurations in lsb.users.
+.PP
+If DEFAULT_LIMIT_IGNORE_USER_GROUP=\fBy\fR|\fBY\fR, "default" user defined in lsb.users
+would not affect usergroup default configurations such as MXJ, JL/P, MAX_PEND_JOBS
+, MAX_PEND_SLOTS.
+.PP
+otherwise it would be the previous logic or action, that is "default" user would pass through
+it values to the default configurations of usergroups.
+.PP
+If you change the configuration of this parameter, you must
+restart mbatchd.
+.SS Default
+.BR
+.PP
+.PP
+\fBN\fR
 .SH DEFAULT_PROJECT
 .BR
 .PP
@@ -142,7 +201,8 @@ Undefined
 .PP
 .PP
 \fBDEFAULT_PROJECT\fR \fB=\fR \fIproject_name
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -193,7 +253,8 @@ queue.
 .PP
 .PP
 \fBDISABLE_UACCT_MAP = y | Y
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -203,6 +264,33 @@ Specify y or Y to disable user-level account mapping.
 .PP
 .PP
 Undefined
+.SH HIST_HOURS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBHIST_HOURS = \fR\fIhours\fR
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Determines a rate of decay for cumulative CPU time.
+.PP
+To calculate dynamic user priority, LSF scales the actual CPU time using a decay factor,
+so that 1 hour of recently-used time is equivalent to 0.1 hours after the specified
+number of hours has elapsed.
+.PP
+When HIST_HOURS=0, CPU time is not decayed.
+.PP
+This parameter can also be set for an individual queue in lsb.queues. If defined,
+the queue value takes precedence.
+.SS Default
+5
+.BR
+.PP
+.PP
 .SH JOB_ACCEPT_INTERVAL
 .BR
 .PP
@@ -211,7 +299,8 @@ Undefined
 .PP
 .PP
 \fBJOB_ACCEPT_INTERVAL =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -315,7 +404,8 @@ MAX_USER_PRIORITY
 .PP
 .PP
 \fBJOB_SPOOL_DIR =\fR \fIdir
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -377,7 +467,8 @@ directory instead of %windir% for spooled output.
 .PP
 .PP
 \fBJOB_TERMINATE_INTERVAL =\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -401,7 +492,8 @@ signals. This allows the job to clean up if necessary.
 .PP
 .PP
 MAX_ACCT_ARCHIVE_FILE=\fIinteger
-\fR.SS Description 
+\fR
+.SS Description 
 .BR
 .PP
 .PP
@@ -438,7 +530,8 @@ Undefined (no deletion of lsb.acct.\fIn\fR files).
 .PP
 .PP
 \fBMAX_JOB_ARRAY_SIZE =\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -465,7 +558,8 @@ Specify an integer value from 1 to 65534.
 .PP
 .PP
 \fBMAX_JOBID=\fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -492,7 +586,8 @@ MAX_JOBID=1234567
 .PP
 .PP
 \fBMAX_JOB_NUM\fR \fB=\fR \fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -516,7 +611,8 @@ Event logging continues in the new lsb.events file.
 .PP
 .PP
 \fBMAX_SBD_FAIL = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -542,7 +638,8 @@ scheduled to be rerun on another host.
 .PP
 .PP
 \fBMAX_SBD_CONNS = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -556,7 +653,8 @@ to sbatchd
 .PP
 .PP
 \fBMAX_SCHED_STAY = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -574,7 +672,8 @@ The time in seconds the mbatchd has for scheduling pass.
 .PP
 .PP
 \fBMAX_USER_PRIORITY=\fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -617,7 +716,8 @@ bsub, bmod, btop, bbot, JOB_PRIORITY_OVER_TIME
 .PP
 .PP
 \fBMBD_SLEEP_TIME =\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -636,7 +736,8 @@ jobs.
 .PP
 .PP
 \fBPG_SUSP_IT =\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -654,6 +755,104 @@ this parameter may be set to 0.
 .PP
 .PP
 180 (seconds)
+.SH RESOURCE_RESERVE_PER_TASK
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRESOURCE_RESERVE_PER_TASK = Y\fR|\fBy\fR|\fBN\fR|\fBn\fR
+.BR
+.PP
+.PP
+.SS Description
+.BR
+.PP
+.PP
+.HP 2
+\(bu If set to N, the job reserves resources per host for host-based
+resource and per job for a shared resource. For example, by default,
+the command:
+.BR
+.PP
+  bsub -n 4 -R "rusage[mem=500:lic=1]" my_job
+.PP
+  Requires the job to reserve 500 MB on each host where the job runs
+and only requires the job to reserve 1 lic which is a shared resource.
+.HP 2
+\(bu If set to Y, the job reserves resources per task. In the above
+example, the job my_job must reserve 500 MB of memory for each job
+task (4*500=2 GB) on the host in order to run, meanwhile reserves the
+resource lic for all 4 job tasks instead of only 1 on the host where
+the job runs.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+N (Not defined)
+.SH RUN_JOB_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRUN_JOB_FACTOR = \fR\fInumber\fR
+.BR
+.PP
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Job slots weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this factor
+determines the relative importance of the number of job slots reserved
+and in use by a user.
+.PP
+This parameter can also be set for an individual queue in lsb.queues.
+If defined, the queue value takes precedence.
+.BR
+.PP
+.PP
+.SS Default
+.BR
+.PP
+.PP
+3.0
+.SH RUN_TIME_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRUN_TIME_FACTOR = \fR \fInumber\fR
+.BR
+.PP
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Used only with fairshare scheduling. Run time weighting factor.
+.PP
+In the calculation of a user’s dynamic share priority, this
+factor determines the relative importance of the total run time
+of a user’s running jobs.
+.PP
+This parameter can also be set for an individual queue in lsb.queues.
+If defined, the queue value takes precedence.
+.BR
+.PP
+.PP
+.SS Default
+0.7
 .SH SBD_SLEEP_TIME
 .BR
 .PP
@@ -662,7 +861,8 @@ this parameter may be set to 0.
 .PP
 .PP
 \fBSBD_SLEEP_TIME =\fR \fIseconds
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -681,7 +881,8 @@ decide whether jobs on the host must be suspended or resumed.
 .PP
 .PP
 \fBSHARED_RESOURCE_UPDATE_FACTOR = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -710,7 +911,8 @@ dispatch turn).
 .PP
 .PP
 \fBMAX_PEND_SLOTS = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -728,7 +930,8 @@ The maximum number of pending job slots available in the system.
 .PP
 .PP
 \fBMAX_PEND_JOBS = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -746,7 +949,8 @@ The maximum number of pending jobs in the cluster.
 .PP
 .PP
 \fBSUB_TRY_INTERVAL = \fR\fIinteger
-\fR.SS Description
+\fR
+.SS Description
 .BR
 .PP
 .PP
@@ -757,32 +961,3 @@ resubmitting a job. This is sent by mbatchd to the client.
 .PP
 .PP
 60 seconds
-.SH DEFAULT_LIMIT_IGNORE_USER_GROUP
-.BR
-.PP
-.SS Syntax
-.BR
-.PP
-.PP
-\fBDEFAULT_LIMIT_IGNORE_USER_GROUP=y\fR|\fBY\fR|\fBn\fR|\fBN
-.SS Description
-.BR
-.PP
-.PP
-Disable "default" user affect usergroup default configurations in lsb.users.
-.PP
-If DEFAULT_LIMIT_IGNORE_USER_GROUP=\fBy\fR|\fBY\fR, "default" user defined in lsb.users
-would not affect usergroup default configurations such as MXJ, JL/P, MAX_PEND_JOBS
-, MAX_PEND_SLOTS.
-.PP
-otherwise it would be the previous logic or action, that is "default" user would pass through
-it values to the default configurations of usergroups.
-.PP
-If you change the configuration of this parameter, you must
-restart mbatchd.
-.SS Default
-.BR
-.PP
-.PP
-\fBN
-.PP

@@ -1,4 +1,5 @@
-/* $Id: lproto.h 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: lproto.h 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -364,6 +365,7 @@ extern int getLogMask(char **, char *);
 extern void ls_openlog(const char *, const char *, int, char *);
 extern void ls_closelog(void);
 extern int  ls_setlogmask(int maskpri);
+extern int  ls_getlogmask();
 
 extern void initkeylist(struct keymap *, int, int, struct lsInfo *);
 extern void freekeyval(struct keymap *);

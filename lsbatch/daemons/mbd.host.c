@@ -61,6 +61,7 @@ checkHosts(struct infoReq *hostsReqPtr,
     int i;
     int k;
     int numHosts = 0;
+    int ret;
 
     ls_syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
 
@@ -82,8 +83,11 @@ checkHosts(struct infoReq *hostsReqPtr,
         hDList = my_calloc(numofhosts(),
                            sizeof (struct hData *), "checkHosts");
 
-    if (hostsReqPtr->numNames == 0)
-        return (getAllHostInfoEnt (hostsReplyPtr, hDList, hostsReqPtr));
+    if (hostsReqPtr->numNames == 0) {
+        ret = getAllHostInfoEnt (hostsReplyPtr, hDList, hostsReqPtr);
+        FREEUP(hDList);
+        return ret;
+    }
 
     for (i = 0; i < hostsReqPtr->numNames; i++) {
 
@@ -147,8 +151,9 @@ checkHosts(struct infoReq *hostsReqPtr,
             }
             free (members);
         } else {
-
-            return (getAllHostInfoEnt (hostsReplyPtr, hDList, hostsReqPtr));
+            ret = getAllHostInfoEnt (hostsReplyPtr, hDList, hostsReqPtr);
+            FREEUP(hDList);
+            return (ret);
         }
     }
 
@@ -157,7 +162,9 @@ checkHosts(struct infoReq *hostsReqPtr,
         return (LSBE_BAD_HOST);
     }
 
-    return (returnHostInfo(hostsReplyPtr, numHosts, hDList, hostsReqPtr));
+    ret = returnHostInfo(hostsReplyPtr, numHosts, hDList, hostsReqPtr);
+    FREEUP(hDList);
+    return (ret); 
 
 }
 
@@ -1276,9 +1283,13 @@ runTimeSinceResume(const struct jData *jp)
     }
 }
 
+struct jobExecHosts {
+    struct hData *hPtr;
+    int    nSlots;
+};
+
 void
-adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
-{
+adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj) {
     static char fname[] = "adjLsbLoad";
     int i, ldx, resAssign = 0;
     float jackValue, orgnalLoad, duration, decay;
@@ -1286,7 +1297,10 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
     struct resourceInstance *instance;
     static int *rusgBitMaps = NULL;
     int adjForPreemptableResource = FALSE;
-    struct hTab  exHostTab;
+    int *hBitMaps = NULL, *hPosBitMaps = NULL;
+    int nExecHosts = 0;
+    struct jobExecHosts *execHosts = NULL;
+    int isSet, lastPos;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -1322,48 +1336,57 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
         adjForPreemptableResource = TRUE;
     }
 
-    h_initTab_(&exHostTab, 11);
+    hBitMaps = (int *)my_calloc(GET_INTNUM(numofhosts()), sizeof(int), fname);
+    hPosBitMaps = (int *)my_calloc(GET_INTNUM(jpbw->numHostPtr), sizeof(int), fname);
     for (i = 0; i < jpbw->numHostPtr; i++) {
-        float load;
-        char loadString[MAXLSFNAMELEN];
-        hEnt *ent = NULL;
-        int  isNextHost = TRUE; /*Whether treat the element as a host*/
-
         if (jpbw->hPtr[i]->hStatus & HOST_STAT_UNAVAIL)
             continue;
 
-        /*RESOURCE_PER_TASK
-         *Y: host-based/shared resource are per-task;
-         *N: host-based resource is per-host; shared resource is per-job;
-         *
-         *For host-based resource, we use RESOURCE_PER_TASK to control
-         *how resource reserve directly.
-         *For shared resouce, we let RESOURCE_PER_TASK to affect SLOT_RESOURCE_RESERVE's
-         *value, and leverage slotResourceReserve to control how resource reserve.
-         *If SLOT_RESOURCE_RESERVE isn't defined visibly, its value will be the same
-         *with RESOURCE_PER_TASK; if it is defined visibly, it will override RESOURCE_PER_TASK
-         *behavior. 
-         */
-        if (!resourcePerTask) { /*RESOURCE_PER_TASK not set*/
-            ent = h_getEnt_(&exHostTab, jpbw->hPtr[i]->host);
-            if (ent) {
-                isNextHost = FALSE;
-                if (!slotResourceReserve) { /*all type resources aren't defined as per-task*/
-                    continue; /*we already adjust resource for this host*/
-                }
+        TEST_BIT(jpbw->hPtr[i]->hostId, hBitMaps, isSet);
+        if(isSet) {
+            continue;
+        } else {
+            SET_BIT(jpbw->hPtr[i]->hostId, hBitMaps);
+            SET_BIT(i, hPosBitMaps);
+            nExecHosts++;    
+        }
+    }
+    FREEUP(hBitMaps);
+
+    execHosts = (struct jobExecHosts *)my_calloc(nExecHosts, sizeof(struct jobExecHosts), fname);
+    lastPos = -1;
+    ldx = 0;
+    for (i = 0; i < jpbw->numHostPtr; i++) {
+        TEST_BIT(i, hPosBitMaps, isSet);
+        if (isSet) {
+            if(lastPos < 0) {
+                /*mark the first exection host's first slot*/
+                lastPos = i;
             } else {
-                isNextHost = TRUE;
-                h_addEnt_(&exHostTab, jpbw->hPtr[i]->host, NULL);
+                /*Find the next execution host's first slot, so calclate the previous host's slots*/
+                execHosts[ldx].nSlots = i - lastPos;
+                execHosts[ldx].hPtr = jpbw->hPtr[i-1];
+                lastPos = i;
+                ldx++;
             }
+        }
+    }
+    /*append the last execution host*/
+    execHosts[ldx].hPtr = jpbw->hPtr[i-1];
+    execHosts[ldx].nSlots = i - lastPos;
+    FREEUP(hPosBitMaps);
+
+    /*go through each execution host*/
+    for (i = 0; i < nExecHosts; i++) {
+        float load;
+        char loadString[MAXLSFNAMELEN];
+
+        if (execHosts[i].hPtr->hStatus & HOST_STAT_UNAVAIL) {
+            continue;
         }
 
         for (ldx = 0; ldx < allLsInfo->nRes; ldx++) {
             float factor;
-            int isSet;
-
-            if (ldx < allLsInfo->numIndx && !isNextHost) {
-                continue;
-            }
 
             if (NOT_NUMERIC(allLsInfo->resTable[ldx]))
                 continue;
@@ -1372,44 +1395,41 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
             if (isSet == 0)
                 continue;
 
-            if (adjForPreemptableResource && (!isItPreemptResourceIndex(ldx))) {
+            if (adjForPreemptableResource && (!isItPreemptResourceIndex(ldx)))
                 continue;
-            }
 
             if (jpbw->jStatus & JOB_STAT_RUN) {
 
                 goto adjustLoadValue;
 
             } else if (IS_SUSP(jpbw->jStatus)
-                       &&
-                       ! (allLsInfo->resTable[ldx].flags & RESF_RELEASE)
-                       &&
-                       forResume == FALSE) {
+                    &&
+                    ! (allLsInfo->resTable[ldx].flags & RESF_RELEASE)
+                    &&
+                    forResume == FALSE) {
 
                 goto adjustLoadValue;
 
-
             } else if (IS_SUSP(jpbw->jStatus)
-                       &&
-                       ! (allLsInfo->resTable[ldx].flags & RESF_RELEASE)
-                       &&
-                       forResume == TRUE
-                       &&
-                       (jpbw->jStatus & JOB_STAT_RESERVE)) {
+                    &&
+                    ! (allLsInfo->resTable[ldx].flags & RESF_RELEASE)
+                    &&
+                    forResume == TRUE
+                    &&
+                    (jpbw->jStatus & JOB_STAT_RESERVE)) {
                 continue;
 
             } else if (IS_SUSP(jpbw->jStatus)
-                       &&
-                       (jpbw->jStatus & JOB_STAT_RESERVE)) {
+                    &&
+                    (jpbw->jStatus & JOB_STAT_RESERVE)) {
 
                 goto adjustLoadValue;
 
-
             } else if (IS_SUSP(jpbw->jStatus)
-                       &&
-                       forResume == TRUE
-                       &&
-                       (allLsInfo->resTable[ldx].flags & RESF_RELEASE)) {
+                    &&
+                    forResume == TRUE
+                    &&
+                    (allLsInfo->resTable[ldx].flags & RESF_RELEASE)) {
 
                 goto adjustLoadValue;
 
@@ -1418,43 +1438,63 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
             }
 
         adjustLoadValue:
-
             jackValue = resValPtr->val[ldx];
             if (jackValue >= INFINIT_LOAD || jackValue <= -INFINIT_LOAD)
                 continue;
 
-            if (ldx < allLsInfo->numIndx) {
-                load = jpbw->hPtr[i]->lsbLoad[ldx];
-            } else {
+            if (ldx < allLsInfo->numIndx) { /*lsb load*/
+                load = execHosts[i].hPtr->lsbLoad[ldx];
+            } else { /*shared resources*/
                 load = getHRValue(allLsInfo->resTable[ldx].name,
-                                  jpbw->hPtr[i], &instance);
+                                  execHosts[i].hPtr, &instance);
                 if (load == -INFINIT_LOAD) {
                     if (logclass & LC_TRACE)
-                        ls_syslog (LOG_DEBUG3, "%s: Host <%s> doesn't share resource <%s>", fname, jpbw->hPtr[i]->host, allLsInfo->resTable[ldx].name);
+                        ls_syslog (LOG_DEBUG3, "%s: Host <%s> doesn't share resource <%s>", fname, execHosts[i].hPtr->host, allLsInfo->resTable[ldx].name);
                     continue;
                 } else {
-
                     TEST_BIT (ldx, rusgBitMaps, isSet)
-                    if ((isSet == TRUE) && !slotResourceReserve) {
+                    if ((isSet == TRUE) && !slotResourceReserve) { /*shared resource per-job*/
                         continue;
                     }
                     SET_BIT (ldx, rusgBitMaps);
                 }
             }
 
-
             if (logclass & LC_SCHED)
                 ls_syslog(LOG_DEBUG1,"\
-%s: jobId=<%s>, hostName=<%s>, resource name=<%s>, the specified rusage of the load or instance <%f>, current lsbload or instance value <%f>, duration <%f>, decay <%f>",
+%s: jobId=<%s>, hostName=<%s>, nSlots=<%d>, resource name=<%s>, the specified rusage of the load or instance <%f>, current lsbload or instance value <%f>, duration <%f>, decay <%f>",
                           fname,
                           lsb_jobid2str(jpbw->jobId),
-                          jpbw->hPtr[i]->host,
+                          execHosts[i].hPtr->host,
+                          execHosts[i].nSlots,
                           allLsInfo->resTable[ldx].name,
                           jackValue,
                           load,
                           duration,
                           decay);
 
+            /*RESOURCE_PER_TASK
+            *Y: host-based/shared resource are per-task;
+            *N: host-based resource is per-host; shared resource is per-job;
+            *
+            *For host-based resource, we use RESOURCE_PER_TASK to control
+            *how resource reserve directly.
+            *For shared resouce, we let RESOURCE_PER_TASK to affect SLOT_RESOURCE_RESERVE's
+            *value, and leverage slotResourceReserve to control how resource reserve.
+            *If SLOT_RESOURCE_RESERVE isn't defined visibly, its value will be the same
+            *with RESOURCE_PER_TASK; if it is defined visibly, it will override RESOURCE_PER_TASK
+            *behavior. So for shared resource, we use slotResourceReserve to control
+            *per-task or per-job;
+            */
+            if (ldx < allLsInfo->numIndx) { /*lsb load*/
+                if (resourcePerTask) {/*RESOURCE_PER_TASK=Y*/
+                    jackValue = jackValue * execHosts[i].nSlots;
+                }
+            } else { /*shared resources*/
+                if (slotResourceReserve) {
+                    jackValue = jackValue * execHosts[i].nSlots;
+                }
+            }
 
             factor = 1.0;
             if (resValPtr->duration != INFINIT_INT) {
@@ -1463,7 +1503,6 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
 
                     if ( isItPreemptResourceIndex(ldx) ) {
                         if (forResume) {
-
                             du = duration;
                         } else {
                             du = duration - runTimeSinceResume(jpbw);
@@ -1478,38 +1517,36 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                 }
                 jackValue *= factor;
             }
-            if (ldx == MEM && jpbw->runRusage.mem > 0) {
 
+            if (ldx == MEM && jpbw->runRusage.mem > 0) {
                 jackValue = jackValue - ((float) jpbw->runRusage.mem)* 0.001;
             } else if (ldx == SWP && jpbw->runRusage.swap > 0) {
-
                 jackValue = jackValue - ((float) jpbw->runRusage.swap)* 0.001;
             }
             if ((ldx == MEM || ldx == SWP) && jackValue < 0.0) {
                 jackValue = 0.0;
             }
-
             if (!doAdj) {
                 continue;
             }
 
             if ((ldx == MEM || ldx == SWP) && jackValue == 0.0) {
-
                 continue;
             }
+
             if (allLsInfo->resTable[ldx].orderType == DECR)
                 jackValue = -jackValue;
 
             if (ldx < allLsInfo->numIndx) {
-                orgnalLoad = jpbw->hPtr[i]->lsbLoad[ldx];
-                jpbw->hPtr[i]->lsbLoad[ldx] += jackValue;
-                if (jpbw->hPtr[i]->lsbLoad[ldx] <= 0.0
+                orgnalLoad = execHosts[i].hPtr->lsbLoad[ldx];
+                execHosts[i].hPtr->lsbLoad[ldx] += jackValue;
+                if (execHosts[i].hPtr->lsbLoad[ldx] <= 0.0
                     && forResume == FALSE)
-                    jpbw->hPtr[i]->lsbLoad[ldx] = 0.0;
-                if (ldx == UT && jpbw->hPtr[i]->lsbLoad[ldx] > 1.0
+                    execHosts[i].hPtr->lsbLoad[ldx] = 0.0;
+                if (ldx == UT && execHosts[i].hPtr->lsbLoad[ldx] > 1.0
                     && forResume == FALSE)
-                    jpbw->hPtr[i]->lsbLoad[ldx] = 1.0;
-                load = jpbw->hPtr[i]->lsbLoad[ldx];
+                    execHosts[i].hPtr->lsbLoad[ldx] = 1.0;
+                load = execHosts[i].hPtr->lsbLoad[ldx];
             } else {
                 orgnalLoad = atof (instance->value);
                 load = orgnalLoad + jackValue;
@@ -1522,10 +1559,11 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
 
             if (logclass & LC_SCHED)
                 ls_syslog(LOG_DEBUG1,"\
-%s: JobId=<%s>, hostname=<%s>, resource name=<%s>, the amount by which the load or the instance has been adjusted <%f>, original load or instance value <%f>, runTime=<%d>, sinceresume=<%d>, value of the load or the instance after the adjustment <%f>, factor <%f>",
+%s: JobId=<%s>, hostname=<%s>, nSlots=<%d>, resource name=<%s>, the amount by which the load or the instance has been adjusted <%f>, original load or instance value <%f>, runTime=<%d>, sinceresume=<%d>, value of the load or the instance after the adjustment <%f>, factor <%f>",
                           fname,
                           lsb_jobid2str(jpbw->jobId),
-                          jpbw->hPtr[i]->host,
+                          execHosts[i].hPtr->host,
+                          execHosts[i].nSlots,
                           allLsInfo->resTable[ldx].name,
                           jackValue,
                           orgnalLoad,
@@ -1535,8 +1573,10 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                           factor);
         }
     }
-    h_delTab_(&exHostTab);
-}
+
+    FREEUP(execHosts);
+
+} /*adjLsbLoad*/
 
 struct resVal *
 getReserveValues(struct resVal *jobResVal, struct resVal *qResVal)

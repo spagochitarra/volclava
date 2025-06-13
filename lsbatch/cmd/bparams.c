@@ -201,7 +201,7 @@ printLong (struct parameterInfo *reply)
     if (reply->sharedResourceUpdFactor > 0){
         printf("%s:\n", I18N(2478,
                "Static shared resource update interval for the cluster")) /* catgets 2478 */;
-        printf("    SHARED_RESOURCE_UPDATE_FACTOR = %d \n\n",reply->sharedResourceUpdFactor);
+        printf("    SHARED_RESOURCE_UPDATE_FACTOR  = %d \n\n",reply->sharedResourceUpdFactor);
     }
 
     if (reply->jobDepLastSub == 1) {
@@ -234,7 +234,7 @@ printLong (struct parameterInfo *reply)
 
     if (reply->subTryInterval > 0) {
         printf("%s:\n", I18N(2451,"Job submission retry interval")); /* catgets 2451 */
-        printf(" %20s = %d %s\n\n", "SUB_TRY_INTERVAL", reply->subTryInterval, I18N(2452, "seconds")); /* catgets 2452 */
+        printf("    %s = %d %s\n\n", "SUB_TRY_INTERVAL", reply->subTryInterval, I18N(2452, "seconds")); /* catgets 2452 */
     }
 
     if (reply->maxPendJobs > 0 && reply->maxPendJobs != INFINIT_INT) {
@@ -254,10 +254,20 @@ printLong (struct parameterInfo *reply)
         printf(" %34s = FALSE\n\n", "DEFAULT_LIMIT_IGNORE_USER_GROUP"); /* catgets 2419 */
     }
 
-    printf("%s:\n", "Mbatchd reserves resources based on job tasks");
+    printf("%s:\n", I18N(2455,"Mbatchd reserves resources based on job tasks")); /* catgets 2455 */
     printf(" %28s = %s\n\n", "RESOURCE_RESERVE_PER_TASK", reply->resourcePerTask?"Y":"N");
 
+    printf("%s:\n", I18N(2456, "Run time weighting factor for fairshare scheduling policy")); /* catgets 2456 */
+    printf("    %s = %f\n\n", "RUN_TIME_FACTOR", reply->runTimeFactor);
 
+    printf("%s:\n", I18N(2457, "CPU time weighting factor for fairshare scheduling policy")); /* catgets 2457 */
+    printf("    %s = %f\n\n", "CPU_TIME_FACTOR", reply->cpuTimeFactor); 
+
+    printf("%s:\n", I18N(2458, "Job slots weighting factor for fairshare scheduling policy")); /* catgets 2458 */
+    printf("    %s = %f\n\n", "RUN_JOB_FACTOR", reply->runJobFactor);
+
+    printf("%s:\n", I18N(2459, "The number of hours of resource consumption history:")); /* catgets 2459 */
+    printf("    %s = %f\n\n", "HIST_HOURS", reply->runJobFactor);
 } 
 
 

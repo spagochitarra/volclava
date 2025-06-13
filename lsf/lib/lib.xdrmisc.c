@@ -1,4 +1,5 @@
-/* $Id: lib.xdrmisc.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: lib.xdrmisc.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -198,9 +199,16 @@ xdr_var_string(XDR *xdrs, char **astring)
             return FALSE;
 
         XDR_SETPOS(xdrs, pos);
-
     } else {
-        len = strlen(*astring);
+        if (*astring == NULL) {
+           char *emptyStr = "";
+           if (! xdr_string(xdrs, &emptyStr, 1)) {
+               return FALSE;
+           }          
+           return TRUE;
+        } else {
+           len = strlen(*astring);
+        }
     }
 
     if (! xdr_string(xdrs, astring, len + 1)) {

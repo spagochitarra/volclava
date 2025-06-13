@@ -1,4 +1,5 @@
-/* $Id: lsb.groups.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: lsb.groups.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -65,48 +66,39 @@ getGrpInfo(char **groups, int *numGroups, int options)
     
     if (numGroups == NULL || *numGroups == 0 || groups == NULL) {
 
-	options |= GRP_ALL;
+        options |= GRP_ALL;
+        groupInfo.options = options;
+        groupInfo.resReq = "";
+    } else {
+        for (i = 0; i < *numGroups; i++) {
+            if (ls_isclustername(groups[i]) <= 0 || (options & USER_GRP)) {
+                continue;
+            }
+            options |= GRP_ALL;
+            clusterName = groups[i];
+	    }
 	
 	
-	groupInfo.options = options;
-	groupInfo.resReq = "";
-	
-    }
-    else {
-	
-    
-	for (i = 0; i < *numGroups; i++) { 
-	    if (ls_isclustername(groups[i]) <= 0 || (options & USER_GRP)) 
-		continue;
-	    
-	    options |= GRP_ALL;
-	    clusterName = groups[i];
-	}
-	
-	
-	if (clusterName == NULL) {
-	    groupInfo.options  = options;
-	    groupInfo.numNames = *numGroups;
-	    groupInfo.names    = groups;
-	    groupInfo.resReq   = "";
-	} else {
-	    
-	    groupInfo.options  = options;
-	    groupInfo.numNames = 0;
-	    groupInfo.names    = NULL;
-	    groupInfo.resReq   = "";
-	}
-	    
+        if (clusterName == NULL) {
+            groupInfo.options  = options;
+            groupInfo.numNames = *numGroups;
+            groupInfo.names    = groups;
+            groupInfo.resReq   = "";
+        } else {
+            groupInfo.options  = options;
+            groupInfo.numNames = 0;
+            groupInfo.names    = NULL;
+            groupInfo.resReq   = "";
+        }
     }
     
     
-    if (sendGrpReq(clusterName, 
-		   options, 
-		   &groupInfo, 
-		   &reply) < 0) {
-	
-        *numGroups = reply.numGroups; 
-	return(NULL);
+    if (sendGrpReq(clusterName,
+                   options,
+                   &groupInfo,
+                   &reply) < 0) {
+        *numGroups = reply.numGroups;
+        return(NULL);
     }
 
     *numGroups = reply.numGroups;
@@ -125,69 +117,66 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
     struct LSFHeader       hdr;
     mbdReqType             mbdReqtype;
     int                    cc;
-
-
-    
+ 
     xdr_lsffree(xdr_groupInfoReply, (char *)reply, &hdr);
 
-    
     mbdReqtype = BATCH_GRP_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.opCode = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, 
-		       (char *)groupInfo, 
-		       &hdr, 
-		       xdr_infoReq,
-		       0, 
-		       NULL)){
-	lsberrno = LSBE_XDR;
+                       (char *)groupInfo, 
+                       &hdr,
+                       xdr_infoReq,
+                       0,
+                       NULL)){
+        lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
-	return(-1);
-    }
-
-    
-    if ((cc = callmbd (clusterName, 
-		       request_buf, 
-		       XDR_GETPOS(&xdrs), 
-		       &reply_buf, 
-                       &hdr, 
-		       NULL, 
-		       NULL, 
-		       NULL)) == -1) {
-        xdr_destroy(&xdrs);
-	return (-1);
+        return(-1);
     }
     
+    if ((cc = callmbd (clusterName,
+                       request_buf,
+                       XDR_GETPOS(&xdrs), 
+                       &reply_buf, 
+                       &hdr,
+                       NULL,
+                       NULL,
+                       NULL)) == -1) {
+        xdr_destroy(&xdrs);
+        return (-1);
+    } 
     
     xdr_destroy(&xdrs);
-
     
     lsberrno =  hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_GROUP ) {
-	xdrmem_create(&xdrs, 
-		      reply_buf, 
-		      XDR_DECODE_SIZE_(cc), 
-		      XDR_DECODE);
-	
+        xdrmem_create(&xdrs,
+              reply_buf,
+              XDR_DECODE_SIZE_(cc),
+              XDR_DECODE);
+
         if (!xdr_groupInfoReply(&xdrs, reply, &hdr)) {
-	    lsberrno = LSBE_XDR;
+            lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
-	    if (cc)
-		free(reply_buf);
-	    return(-1);
+            if (cc) {
+                free(reply_buf);
+            }
+            return(-1);
         }
         xdr_destroy(&xdrs);
-	if (cc)
-	    free(reply_buf);
+        if (cc) {
+            free(reply_buf);
+        }
         return (0);
     }
 
-    if (cc)
-	free(reply_buf);
+    if (cc) {
+        free(reply_buf);
+    }
     return(-1);
 
-} 
+}
 
 void
 freeGroupInfoReply (struct groupInfoReply *reply)
@@ -199,7 +188,6 @@ freeGroupInfoReply (struct groupInfoReply *reply)
 
     for (i = 0; i < reply->numGroups; i++) {
         FREEUP(reply->groups[i].memberList);
-	
     }
 
     FREEUP (reply->groups);

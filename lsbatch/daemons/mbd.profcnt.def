@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
  * $Id: mbd.profcnt.def,v 1.1 2007/07/18 23:17:39 cchen Exp $
  ***************************************************************************
  *
@@ -125,5 +126,6 @@ MBD_PROF_COUNTER(resigJobs1)
 MBD_PROF_COUNTER(numNonSchedulableJobsInHpart)
 MBD_PROF_COUNTER(numSchedulableJobsInHpart)
 MBD_PROF_COUNTER(numCandHostsBelongToHpart)
-MBD_PROF_COUNTER(numCandHostNotInHpart)              
+MBD_PROF_COUNTER(numCandHostNotInHpart)
 #endif
+MBD_PROF_COUNTER(sch_fs_electJob)

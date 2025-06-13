@@ -191,6 +191,7 @@ static int resolveBatchNegHosts(char*, char**, int);
 static int fillCell(struct inNames**, char*, char*);
 static int expandWordAll(int*, int*, struct inNames**, char*);
 static int readHvalues_conf(struct keymap *, char *, struct lsConf *, char *, int *, int, char *);
+static int parseUserShares(struct userShares **, char *, char *, int, int);
 
 
 static int
@@ -422,6 +423,10 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
         {"MAX_PEND_JOBS", NULL, 0},
         {"MAX_PEND_SLOTS", NULL, 0},
         {"DEFAULT_LIMIT_IGNORE_USER_GROUP", NULL, 0},
+        {"CPU_TIME_FACTOR", NULL, 0},       /* 40 */
+        {"RUN_TIME_FACTOR", NULL, 0},
+        {"RUN_JOB_FACTOR", NULL, 0},
+        {"HIST_HOURS", NULL, 0},
         {NULL, NULL, 0}
 
     };
@@ -472,7 +477,6 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                                                      "%s: Ignore LSB_MANAGER value <%s>; use MANAGERS  defined in cluster file instead"), pname, keylist[i].val); /* catgets 5061 */
                 lsberrno = LSBE_CONF_WARNING;
             }
-
             else if (i == 1) {
                 pConf->param->defaultQueues = putstr_ (keylist[i].val);
                 if (pConf->param->defaultQueues == NULL) {
@@ -483,7 +487,6 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     return (FALSE);
                 }
             }
-
             else if (i == 2) {
                 pConf->param->defaultHostSpec = putstr_ (keylist[i].val);
                 if (pConf->param->defaultHostSpec == NULL) {
@@ -636,7 +639,6 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     pConf->param->sharedResourceUpdFactor = value;
                 }
             }
-
             else if (i == 31)
             {
                 int value = 0;
@@ -663,7 +665,6 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     pConf->param->maxJobId = value;
                 }
             }
-
             else if (i == 28) {
                 if (strcasecmp(keylist[i].val, "Y") == 0)
                     pConf->param->scheRawLoad = TRUE;
@@ -698,6 +699,50 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                               pname, fname, *lineNum, keylist[i].val);
                     pConf->param->defaultLimitIgnoreUserGroup = FALSE;
                 }
+            } else if ( i == 40) {
+                float value = my_atof(keylist[i].val, INFINIT_FLOAT, -0.001);
+                if (value == INFINIT_FLOAT) {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5072, "\
+%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive number between 0.0 and %f; ignored"),  /* catgets 5072 */
+                              pname, fname, *lineNum, keylist[i].val, keylist[i].key, (INFINIT_FLOAT - 0.001));
+                    lsberrno = LSBE_CONF_WARNING;
+                    pConf->param->cpuTimeFactor = DEF_CPU_TIME_FACTOR;
+                } else {
+                    pConf->param->cpuTimeFactor = value;
+                }
+            } else if ( i == 41 ) {
+                float value = my_atof(keylist[i].val, INFINIT_FLOAT, -0.001);
+                if (value == INFINIT_FLOAT) {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5072, "\
+%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive number between 0.0 and %f; ignored"),  /* catgets 5072 */
+                              pname, fname, *lineNum, keylist[i].val, keylist[i].key, (INFINIT_FLOAT - 0.001));
+                    lsberrno = LSBE_CONF_WARNING;
+                    pConf->param->runTimeFactor = DEF_RUN_TIME_FACTOR;
+                } else {
+                    pConf->param->runTimeFactor = value;
+                }
+            } else if ( i == 42 ) {
+                float value = my_atof(keylist[i].val, INFINIT_FLOAT, -0.001);
+                if (value == INFINIT_FLOAT) {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5072, "\
+%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive number between 0.0 and %f; ignored"),  /* catgets 5072 */
+                              pname, fname, *lineNum, keylist[i].val, keylist[i].key, (INFINIT_FLOAT - 0.001));
+                    lsberrno = LSBE_CONF_WARNING;
+                    pConf->param->runJobFactor = DEF_RUN_JOB_FACTOR;
+                } else {
+                    pConf->param->runJobFactor = value;
+                }
+            } else if ( i == 43 ) {
+                float value = my_atof(keylist[i].val, INFINIT_FLOAT, -0.001);
+                if (value == INFINIT_FLOAT) {
+                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5072, "\
+%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive number between 0.0 and %f; ignored"),  /* catgets 5072 */
+                              pname, fname, *lineNum, keylist[i].val, keylist[i].key, (INFINIT_FLOAT - 0.001));
+                    lsberrno = LSBE_CONF_WARNING;
+                    pConf->param->histHours = DEF_HIST_HOURS;
+                } else {
+                    pConf->param->histHours = value;
+                }
             } else if (i > 5) {
                 if ( i < 23 || i > 36)
                     value = my_atoi(keylist[i].val, INFINIT_INT, 0);
@@ -707,7 +752,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                     ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5071,
                                                      "%s: File %s in section Parameters ending at line %d: Value <%s> of %s isn't a positive integer between 1 and %d; ignored"), pname, fname, *lineNum, keylist[i].val, keylist[i].key, INFINIT_INT - 1); /* catgets 5071 */
                     lsberrno = LSBE_CONF_WARNING;
-                } else
+                } else {
                     switch (i) {
                         case 6:
                             pConf->param->mbatchdInterval = value;
@@ -769,7 +814,6 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                         case 25:
                             value = my_atoi(keylist[i].val, INFINIT_INT, -1);
                             if ( value != INFINIT_INT) {
-
                                 if ( value > 0) {
                                     pConf->param->maxUserPriority = value;
                                 }
@@ -795,6 +839,7 @@ do_Param(struct lsConf *conf, char *fname, int *lineNum)
                             lsberrno = LSBE_CONF_WARNING;
                             break;
                     }
+                } /*if (value == INFINIT_INT)*/
             }
         }
     }
@@ -886,6 +931,10 @@ initParameterInfo(struct parameterInfo *param)
         param->maxPendJobs = INFINIT_INT;
         param->maxPendSlots = INFINIT_INT;
         param->defaultLimitIgnoreUserGroup = FALSE;
+        param->cpuTimeFactor = INFINIT_FLOAT;
+        param->runTimeFactor = INFINIT_FLOAT;
+        param->runJobFactor = INFINIT_FLOAT;
+        param->histHours = INFINIT_FLOAT;
     }
 }
 
@@ -1405,7 +1454,227 @@ Error:
 
 }
 
+static int parseUserShares(struct userShares **userShares,
+                           char * sharesStr,
+                           char * fname,
+                           int lineNum,
+                           int isQueue) {
+    static char pname[] = "parseUserShares";
+    char       *localStr = NULL;  
+    int         i = 0, len = 0, count = 0, numUserShares = 0;
+    char       *p = NULL, *end = NULL, *delimiter = NULL, *uPtr = NULL, *sharePtr = NULL;
+    hTab        nameCache;
+    struct userShares *localShares = NULL;
+    
 
+    if (!userShares || !sharesStr) {
+        return 0;
+    }
+
+    *userShares = NULL;
+
+    localStr = (char *)calloc(strlen(sharesStr) + 1, sizeof(char)); 
+    if (!localStr) {
+        ls_syslog(LOG_ERR,"%s: calloc() failed to allocate memory", pname);
+        lsberrno = LSBE_NO_MEM;
+        return 0;
+    }
+
+    /*skip spaces*/
+    p = sharesStr;
+    len = 0;
+    while(*p) {
+        if (!isspace(*p)) {
+            localStr[len] = *p;
+            len++;
+        }
+        p++;
+    }
+
+    if (!len) {
+        FREEUP(localStr);
+        return 0;
+    }
+
+    /*count number of [user, share]*/
+    p = localStr;
+    count = 0;
+    while ((p != '\0') && ((p = strchr(p, '[')) != NULL)) {
+        count++;
+        p++;
+    }   
+    if (count == 0) {
+        ls_syslog(LOG_WARNING, "\
+%s: File %s at line %d: user share definition <%s> should be enclosed within square brackets '[]'; ignored", pname, fname, lineNum, localStr);
+        lsberrno = LSBE_CONF_WARNING;
+        FREEUP(localStr);
+        return 0;
+    }
+
+    /*alloc spaces*/
+    localShares = (struct userShares *)calloc(count, sizeof(struct userShares));
+    if (!localShares) {
+        ls_syslog(LOG_ERR,"%s: calloc() failed to allocate userShares memory", pname);
+        FREEUP(localStr);
+        lsberrno = LSBE_NO_MEM;
+        return 0;
+    }
+
+    /*parse each [user, share]*/
+    h_initTab_(&nameCache, 11);
+    p = localStr;
+    numUserShares = 0;
+    while ((*p != '\0') && ((p = strchr(p, '[')) != NULL)) {
+        end = strchr(p, ']');
+        if (end == NULL) {
+            ls_syslog(LOG_WARNING, "%s: File %s at line %d: '[' is unmatched in user share definition <%s>; ignored", pname, fname, lineNum, p);
+            lsberrno = LSBE_CONF_WARNING;
+            break;
+        }
+        *end = '\0';
+        
+        delimiter = strchr(p, ',');
+        if (delimiter == NULL) {
+            ls_syslog(LOG_WARNING, "%s: File %s at line %d: ',' is missing in user share definition <[%s]>; ignored", pname, fname, lineNum, p+1);
+            lsberrno = LSBE_CONF_WARNING;
+            p = end + 1;
+            continue;
+        }
+        if ((p + 1 == delimiter) || (delimiter + 1 == end)) {
+            ls_syslog(LOG_WARNING, "%s: File %s at line %d: Invalid user share definition <[%s]>, please define one user share for each user; ignored.", pname, fname, lineNum, p+1);
+            lsberrno = LSBE_CONF_WARNING;
+            p = end + 1;
+            continue;
+        }
+        *delimiter = '\0';
+        uPtr = p+1;
+        sharePtr = delimiter + 1;
+
+        /*get userName/ugroupName*/
+        localShares[numUserShares].name = strdup(uPtr);
+        if (localShares[numUserShares].name == NULL) {
+            ls_syslog(LOG_ERR,"%s: strdup() failed to create user share name", pname);
+            for (i = 0; i < numUserShares; i++) {
+                FREEUP(localShares[i].name);
+            }
+            FREEUP(localShares);        
+            lsberrno = LSBE_NO_MEM;
+
+            goto __END__;
+        }
+        /*check user/usergroup*/
+        if (h_getEnt_(&nameCache, uPtr)) {
+            ls_syslog(LOG_WARNING, "%s: File %s at line %d: User <%s> is duplicated in user shares <%s>; ignored", pname, fname, lineNum, uPtr, sharesStr);
+            FREEUP(localShares[numUserShares].name);
+            lsberrno = LSBE_CONF_WARNING;
+            p = end + 1;
+            continue;
+        }
+        if (strcasecmp(uPtr, "default") == 0) {
+            if (h_getEnt_(&nameCache, "others")) {
+                *delimiter = ',';
+                ls_syslog(LOG_WARNING, "%s: File %s at line %d: <others> or <default> is multiply defined in <%s>; ignoring <[%s]>", pname, fname, lineNum, sharesStr, uPtr);
+                *delimiter = '\0';
+                FREEUP(localShares[numUserShares].name);
+                lsberrno = LSBE_CONF_WARNING;
+                p = end + 1;
+                continue;
+            }
+        } else if (strcasecmp(uPtr, "others") == 0) {
+            if (h_getEnt_(&nameCache, "default")) {
+                *delimiter = ',';
+                ls_syslog(LOG_WARNING, "%s: File %s at line %d: <default> or <others> is multiply defined in <[%s]>; ignoring <[%s]>", pname, fname, lineNum, sharesStr, uPtr);
+                *delimiter = '\0';
+                FREEUP(localShares[numUserShares].name);
+                lsberrno = LSBE_CONF_WARNING;
+                p = end + 1;
+                continue;
+            }
+        } else {
+            struct passwd * pw;
+            pw = getpwlsfuser_(uPtr);
+            if (pw == NULL) {
+                /*check whether it is ugroup*/
+                int isReset = 0, uLen = 0;
+                if (isQueue) {
+                    uLen = strlen(uPtr)-1;
+                    if (uPtr[uLen] == '@') {
+                        /*remove @ temporarily */
+                        uPtr[uLen] = '\0';
+                        isReset = 1;
+                    }
+                }
+                if (!getGrpData(usergroups, uPtr, numofugroups)) {
+                    struct group *unixGrp = NULL;
+                    /*check whether it is unix usergroup*/
+                    unixGrp = mygetgrnam(uPtr);
+                    if (!unixGrp) {
+                        *delimiter = ',';
+                        if (isReset) {
+                            uPtr[uLen] = '@';
+                        }
+                        ls_syslog(LOG_WARNING, "%s: File %s at line %d: Unknown user name <%s> in <[%s]>.", pname, fname, lineNum, localShares[numUserShares].name, uPtr);
+                        *delimiter = '\0';
+                        if (isReset) {
+                            uPtr[uLen] = '\0';
+                        }
+                        lsberrno = LSBE_CONF_WARNING;
+                    }
+                }
+                if (isReset) {
+                    uPtr[uLen] = '@';
+                }
+            }
+        }
+
+        /*get share value*/
+        *delimiter = ',';
+        localShares[numUserShares].share = my_atoi(sharePtr, INFINIT_INT, 0);
+        if (localShares[numUserShares].share == INFINIT_INT) {
+            ls_syslog(LOG_WARNING, "\
+%s: File %s at line %d: Invalid share value in <[%s]>, it should be a positive integer between 1 and 2147483646; ignored", pname, fname, lineNum, p+1);
+            FREEUP(localShares[numUserShares].name);
+            lsberrno = LSBE_CONF_WARNING;
+            p = end + 1;
+            continue;
+        }
+        h_addEnt_(&nameCache, localShares[numUserShares].name, NULL);
+        numUserShares++;
+        p = end + 1; /*handle next usershare item*/
+    }
+
+    if (numUserShares == 0) { /*no shares defined*/
+        FREEUP(localShares);
+    } else if (numUserShares == 1) {
+        if(strcmp(localShares[0].name, "others") == 0) {
+            ls_syslog(LOG_WARNING, "\
+%s: File %s at line %d: Invalid share definition as a singleton <[%s,%d]> defined; ignored", 
+                    pname, fname, lineNum, localShares[0].name, localShares[0].share);
+            FREEUP(localShares[0].name);
+            FREEUP(localShares);
+            numUserShares = 0;
+            lsberrno = LSBE_CONF_WARNING;
+        }
+    } else if (numUserShares < count) {
+        struct userShares *tmp = (struct userShares *)realloc(localShares, numUserShares * sizeof(struct userShares));
+        if (!tmp) {
+            ls_syslog(LOG_ERR,"%s: realloc() failed to reallocate memory for userShares", pname);
+            for (i = 0; i < numUserShares; i++) {
+                FREEUP(localShares[i].name);
+            }
+            FREEUP(localShares);
+            lsberrno = LSBE_NO_MEM;
+            goto __END__;
+        }
+        localShares = tmp;
+    }
+    *userShares = localShares;
+
+__END__:
+    h_delTab_(&nameCache);
+    FREEUP(localStr);
+    return numUserShares;
+} /*parseUserShares*/
 
 static char
 do_Groups(struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
@@ -1415,6 +1684,7 @@ do_Groups(struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
     struct keymap          keylist[] = {
         {"GROUP_NAME", NULL, 0},
         {"GROUP_MEMBER", NULL, 0},
+        {"USER_SHARES", NULL, 0},
         {NULL, NULL, 0}
     };
     char *                 linep;
@@ -1422,7 +1692,7 @@ do_Groups(struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
     char *                 sp;
     char *                 HUgroups;
     struct groupInfoEnt *  gp;
-    int                    type;
+    int                    type, i;
     int                    allFlag = FALSE;
     struct passwd *        pw;
     int                    nGrpOverFlow=0;
@@ -1626,6 +1896,16 @@ do_Groups(struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
                 *ngroups -= 1;
             }
 
+            /*if usergroup, we will parse other attributes*/
+            if (type == USER_GRP && gp->memberList) {
+                i = 2;
+                while(keylist[i].key) {
+                    if (strcasecmp(keylist[i].key, "USER_SHARES") == 0) {
+                        gp->numUserShares = parseUserShares(&gp->userShares, keylist[i].val, fname, *lineNum, 0);
+                    }
+                    i++;
+                }
+            }
         }
 
         ls_syslog(LOG_WARNING, I18N_FILE_PREMATURE, pname, fname, *lineNum);
@@ -1872,7 +2152,6 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
                     return (FALSE);
                 }
             }
-
         }
     }
 
@@ -2112,15 +2391,23 @@ initGroupInfo (struct groupInfoEnt *gp)
     if (gp != NULL) {
         gp->group = NULL;
         gp->memberList = NULL;
+        gp->options = 0;
+        gp->userShares = NULL;
+        gp->numUserShares = 0;
     }
 }
 
 static void
 freeGroupInfo (struct groupInfoEnt *gp)
 {
+    int i;
     if (gp != NULL) {
         FREEUP(gp->group);
         FREEUP(gp->memberList);
+        for (i = 0; i < gp->numUserShares; i++) {
+            FREEUP(gp->userShares[i].name);
+        }
+        FREEUP(gp->userShares);
     }
 }
 
@@ -2377,7 +2664,7 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
     char *fname;
     char   *cp;
     char *section;
-    char hostok, hgroupok, hpartok;
+    char hostok;
     int i, j, lineNum = 0;
 
     lsberrno = LSBE_NO_ERROR;
@@ -2449,8 +2736,6 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
     conf->confhandle->lineCount = 0;
 
     hostok = FALSE;
-    hgroupok = FALSE;
-    hpartok = FALSE;
 
     for (;;) {
         if ((cp = getBeginLine_conf(conf, &lineNum)) == NULL) {
@@ -2522,9 +2807,8 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
                 continue;
             } else if (strcasecmp(section, "hostgroup") == 0) {
 
-                if (do_Groups(hostgroups, conf, fname, &lineNum, &numofhgroups, options))
-                    hgroupok = TRUE;
-                else if (lsberrno == LSBE_NO_MEM) {
+                if (! do_Groups(hostgroups, conf, fname, &lineNum, &numofhgroups, options) && 
+                    lsberrno == LSBE_NO_MEM) {
                     lsberrno = LSBE_CONF_FATAL;
                     freeWorkHost(TRUE);
                     FREEUP(myinfo.resTable);
@@ -3853,7 +4137,11 @@ do_Queues(struct lsConf *conf,
 #define QKEY_ENQUE_INTERACTIVE_AHEAD info->numIndx+45
 #define QKEY_ROUND_ROBIN_POLICY info->numIndx+46
 #define QKEY_PRE_POST_EXEC_USER info->numIndx+47
-#define KEYMAP_SIZE info->numIndx+49
+#define QKEY_CPUTIME_FACTOR  info->numIndx+48
+#define QKEY_RUNTIME_FACTOR  info->numIndx+49
+#define QKEY_RUNJOB_FACTOR   info->numIndx+50
+#define QKEY_HIST_HOURS        info->numIndx+51
+#define KEYMAP_SIZE info->numIndx+53
 
     static char pname[] = "do_Queues";
     struct queueInfoEnt queue;
@@ -3892,7 +4180,7 @@ do_Queues(struct lsConf *conf,
     keylist[QKEY_QJOB_LIMIT].key="QJOB_LIMIT";
     keylist[QKEY_POLICIES].key="POLICIES";
     keylist[QKEY_DISPATCH_WINDOW].key="DISPATCH_WINDOW";
-    keylist[QKEY_USER_SHARES].key="USER_SHARES";
+    keylist[QKEY_USER_SHARES].key="FAIRSHARE";
     keylist[QKEY_DEFAULT_HOST_SPEC].key="DEFAULT_HOST_SPEC";
     keylist[QKEY_PROCLIMIT].key="PROCLIMIT";
     keylist[QKEY_ADMINISTRATORS].key="ADMINISTRATORS";
@@ -3919,6 +4207,10 @@ do_Queues(struct lsConf *conf,
     keylist[QKEY_ENQUE_INTERACTIVE_AHEAD].key = "ENQUE_INTERACTIVE_AHEAD";
     keylist[QKEY_ROUND_ROBIN_POLICY].key = "ROUND_ROBIN_POLICY";
     keylist[QKEY_PRE_POST_EXEC_USER].key="PRE_POST_EXEC_USER";
+    keylist[QKEY_CPUTIME_FACTOR].key="CPU_TIME_FACTOR";
+    keylist[QKEY_RUNTIME_FACTOR].key="RUN_TIME_FACTOR";
+    keylist[QKEY_RUNJOB_FACTOR].key="RUN_JOB_FACTOR";
+    keylist[QKEY_HIST_HOURS].key="HIST_HOURS";    
     keylist[KEYMAP_SIZE - 1].key = NULL;
 
     initQueueInfo(&queue);
@@ -3984,8 +4276,6 @@ do_Queues(struct lsConf *conf,
             return (FALSE);
         }
 
-
-
         queue.queue = putstr_ (keylist[QKEY_NAME].val);
         if (queue.queue == NULL) {
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
@@ -3994,7 +4284,6 @@ do_Queues(struct lsConf *conf,
             freekeyval (keylist);
             return (FALSE);
         }
-
 
         if (keylist[QKEY_PRIORITY].val != NULL
             && strcmp(keylist[QKEY_PRIORITY].val, "")) {
@@ -4641,9 +4930,6 @@ do_Queues(struct lsConf *conf,
             }
         }
 
-
-
-
         if (keylist[QKEY_JOB_CONTROLS].val != NULL &&
             strcmp(keylist[QKEY_JOB_CONTROLS].val, "")) {
             if (parseSigActCmd (&queue, keylist[QKEY_JOB_CONTROLS].val,
@@ -4663,6 +4949,181 @@ do_Queues(struct lsConf *conf,
                 freekeyval (keylist);
                 freeQueueInfo (&queue);
                 return (FALSE);
+            }
+        }
+
+        if (keylist[QKEY_USER_SHARES].val != NULL 
+             && strcmp(keylist[QKEY_USER_SHARES].val, "")) {
+            int len = strlen(keylist[QKEY_USER_SHARES].val);
+            
+            if (strncmp(keylist[QKEY_USER_SHARES].val, "USER_SHARES", 11)) {
+                ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: keyword USER_SHARES is not defined in FAIRSHARE parameter <%s>; ignoring FAIRSHARE",
+                        pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                lsberrno = LSBE_CONF_WARNING;
+            } else {
+                /*check usershares value rounded by []*/
+                char *p = NULL;
+                int  fmtOk = TRUE;
+                
+                p = keylist[QKEY_USER_SHARES].val + 11;
+
+                /*now p point to the first non-space char*/
+                while(*p != '\0' && isspace(*p)) { /*skip spaces*/
+                    p++;
+                }
+                if (*p != '[') {
+                    ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value in FAIRSHARE parameter <%s> should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                            pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                    fmtOk = FALSE;
+                    lsberrno = LSBE_CONF_WARNING;
+                } else { /*continue to check if this '[' really belong to USER_SHARES[]*/
+                    /*find the next non-space char*/
+                    p++;
+                    while(*p != '\0' && isspace(*p)) { /*skip spaces*/
+                        p++;
+                    }
+                    if (*p == ']' && *(p+1) == '\0') {
+                        ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: No USER_SHARES values defined in FAIRSHARE parameter <%s>; ignoring FAIRSHARE",
+                                pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                        fmtOk = FALSE;
+                        lsberrno = LSBE_CONF_WARNING;  
+                    } else if (*p == ']' && *(p+1) != '\0') {
+                        ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value in FAIRSHARE parameter <%s> should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                                pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                        fmtOk = FALSE;
+                        lsberrno = LSBE_CONF_WARNING;
+                    } else if (*p != '[') {
+                        ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value in FAIRSHARE parameter <%s> should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                                pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                        fmtOk = FALSE;
+                        lsberrno = LSBE_CONF_WARNING;
+                    }
+                }
+
+                if (fmtOk) { /*check whether end in ']'*/
+                    /*find the last non-space char*/
+                    while(isspace(keylist[QKEY_USER_SHARES].val[--len])) { /*now len stop at the ending ']'*/
+                        continue;
+                    }
+                    if (keylist[QKEY_USER_SHARES].val[len] != ']') {
+                        ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value <%s> in FAIRSHARE parameter should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                                pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                        fmtOk = FALSE;
+                        lsberrno = LSBE_CONF_WARNING;                        
+                    } else {
+                        /*contine to check the second last non-space char*/
+                        while(isspace(keylist[QKEY_USER_SHARES].val[--len])) {
+                            continue;
+                        }
+                        if (p == &(keylist[QKEY_USER_SHARES].val[len])) {
+                            ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value <%s> in FAIRSHARE parameter should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                                    pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                            fmtOk = FALSE;
+                            lsberrno = LSBE_CONF_WARNING;                          
+                        } else if (keylist[QKEY_USER_SHARES].val[len] != ']') {
+                            ls_syslog(LOG_WARNING, "\
+%s: File %s in section Queue ending at line %d: USER_SHARES value <%s> in FAIRSHARE parameter should be enclosed within square brackets '[]'; ignoring FAIRSHARE",
+                                    pname, fname, *lineNum, keylist[QKEY_USER_SHARES].val);
+                            fmtOk = FALSE;
+                            lsberrno = LSBE_CONF_WARNING;     
+                        }
+                    }             
+                }
+
+                if (fmtOk) {
+                    /*finally, we can parse it*/
+                    int numUserShares = 0;
+                    struct userShares *uShares = NULL;
+
+                    keylist[QKEY_USER_SHARES].val[len+1] = '\0';
+                    numUserShares = parseUserShares(&uShares, p, fname, *lineNum, 1);
+                    if (numUserShares) {
+                        int ii = 0, myLen = 0;
+
+                        queue.userShares = (char *)calloc(len+1, sizeof(char));
+                        if (!queue.userShares) {
+                            ls_syslog(LOG_ERR, "%s: calloc() failed to allocate tmpStr memory", pname);
+                            lsberrno = LSBE_NO_MEM;
+                            freekeyval (keylist);
+                            freeQueueInfo (&queue);
+                            for (ii = 0; ii < numUserShares; ii++) {
+                                FREEUP(uShares[ii].name);
+                            }
+                            FREEUP(uShares);
+                            keylist[QKEY_USER_SHARES].val[len+1] = ']';
+                            return (FALSE);                
+                        }
+
+                        for (ii = 0; ii < numUserShares; ii++) {
+                            myLen = strlen(queue.userShares);
+                            snprintf(queue.userShares + myLen, len+1-myLen, "[%s,%d]", uShares[ii].name, uShares[ii].share);
+                        }
+                        for (ii = 0; ii < numUserShares; ii++) {
+                            FREEUP(uShares[ii].name);
+                        }
+                        FREEUP(uShares);
+                    }
+                    keylist[QKEY_USER_SHARES].val[len+1] = ']';
+                }
+
+            }
+            if (queue.userShares) {
+                queue.qAttrib |= Q_ATTRIB_FS;
+            }
+        }
+
+        /* queue level fairshare factors */
+        if ((keylist[QKEY_CPUTIME_FACTOR].val != NULL)
+                && (0 != strcmp(keylist[QKEY_CPUTIME_FACTOR].val, ""))) {
+            if ((queue.fsFactors.cpuTimeFactor = my_atof(keylist[QKEY_CPUTIME_FACTOR].val, INFINIT_FLOAT, -0.001)) == INFINIT_FLOAT) {
+                ls_syslog(LOG_ERR, I18N(5359,
+                            "%s: File %s in section Queue ending at line %d: %s <%s> isn't a positive number between 0 and %f; ignored."),
+                            pname, fname, *lineNum, keylist[QKEY_CPUTIME_FACTOR].key, keylist[QKEY_CPUTIME_FACTOR].val, (INFINIT_FLOAT - 0.001)); /* catgets 5359 */
+                queue.fsFactors.cpuTimeFactor = -1.0;
+                lsberrno = LSBE_CONF_WARNING;
+            }
+        }
+
+        if ((keylist[QKEY_RUNTIME_FACTOR].val != NULL)
+                && (0 != strcmp(keylist[QKEY_RUNTIME_FACTOR].val, ""))) {
+            if ((queue.fsFactors.runTimeFactor = my_atof(keylist[QKEY_RUNTIME_FACTOR].val
+                            , INFINIT_FLOAT, -0.001)) == INFINIT_FLOAT) {
+                ls_syslog(LOG_ERR, I18N(5359,
+                            "%s: File %s in section Queue ending at line %d: %s <%s> isn't a positive number between 0 and %f; ignored."
+                            ), pname, fname, *lineNum, keylist[QKEY_RUNTIME_FACTOR].key, keylist[QKEY_RUNTIME_FACTOR].val, (INFINIT_FLOAT - 0.001)); /* catgets 5359 */
+                queue.fsFactors.runTimeFactor = -1.0;
+                lsberrno = LSBE_CONF_WARNING;
+            }
+        }
+
+        if ((keylist[QKEY_RUNJOB_FACTOR].val != NULL)
+                && (0 != strcmp(keylist[QKEY_RUNJOB_FACTOR].val, ""))) {
+            if ((queue.fsFactors.runJobFactor = my_atof(keylist[QKEY_RUNJOB_FACTOR].val
+                            , INFINIT_FLOAT, -0.001)) == INFINIT_FLOAT) {
+                ls_syslog(LOG_ERR, I18N(5359,
+                            "%s: File %s in section Queue ending at line %d: %s <%s> isn't a positive number between 0 and %f; ignored."),
+                            pname, fname, *lineNum, keylist[QKEY_RUNJOB_FACTOR].key, keylist[QKEY_RUNJOB_FACTOR].val, (INFINIT_FLOAT - 0.001)); /* catgets 5359 */
+                queue.fsFactors.runJobFactor = -1.0;
+                lsberrno = LSBE_CONF_WARNING;
+            }
+        }
+
+        if ((keylist[QKEY_HIST_HOURS].val != NULL)
+                && (0 != strcmp(keylist[QKEY_HIST_HOURS].val, ""))) {
+            if (((queue.fsFactors.histHours = my_atof(keylist[QKEY_HIST_HOURS].val
+                            , INFINIT_FLOAT, -0.001)) == INFINIT_FLOAT) || ((queue.fsFactors.histHours - (int)queue.fsFactors.histHours) > 0)) {
+                ls_syslog(LOG_ERR, I18N(5359,
+                            "%s: File %s in section Queue ending at line %d: %s <%s> isn't a non-negative integer between 0 and %f; ignored."
+                             ), pname, fname, *lineNum, keylist[QKEY_HIST_HOURS].key, keylist[QKEY_HIST_HOURS].val, (INFINIT_FLOAT - 0.001)); /* catgets 5359 */
+                queue.fsFactors.histHours = -1.0;
+                lsberrno = LSBE_CONF_WARNING;
             }
         }
 
@@ -4759,6 +5220,11 @@ initQueueInfo(struct queueInfoEnt *qp)
 
     qp->chkpntPeriod = -1;
     qp->chkpntDir  = NULL;
+    qp->userShares = NULL;
+    qp->fsFactors.cpuTimeFactor = -1;
+    qp->fsFactors.runTimeFactor = -1;
+    qp->fsFactors.runJobFactor = -1;
+    qp->fsFactors.histHours = -1;
 }
 
 static void
@@ -4790,6 +5256,7 @@ freeQueueInfo(struct queueInfoEnt *qp)
     FREEUP(qp->suspendActCmd);
     FREEUP(qp->resumeActCmd);
     FREEUP(qp->terminateActCmd);
+    FREEUP(qp->userShares);
 }
 
 char
@@ -6174,8 +6641,6 @@ freeUnixGrp(struct group *unixGrp)
         FREEUP(unixGrp);
         unixGrp = NULL;
     }
-
-
 }
 
 
@@ -6254,14 +6719,11 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
     int    j, k;
     int    result = 0;
     char*  ptr_level = NULL;
-    int    isAll = FALSE;
     int    inTableSize = 0;
-    int    outTableSize = 0;
 
     inTable  = calloc(cConf.numHosts, sizeof(struct inNames*));
     inTableSize = cConf.numHosts;
     outTable = calloc(cConf.numHosts, sizeof(char*));
-    outTableSize = cConf.numHosts;
 
     if (!buffer || !inTable || !outTable) {
         goto error_clean_up;
@@ -6353,7 +6815,6 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
 
                 int miniTableSize = 0;
 
-                isAll = TRUE;
 
                 miniTableSize = in_num + numofhosts;
 
@@ -6380,10 +6841,7 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
 
                     int miniTableSize = 0;
 
-                    isAll = TRUE;
-
                     miniTableSize = in_num + numofhosts;
-
 
 
                     if (miniTableSize - inTableSize >= 0) {
@@ -6776,3 +7234,15 @@ updateClusterConf(struct clusterConf *clusterConf)
 {
     cConf = *clusterConf;
 }
+
+void freeShareAcctInfoEnt(struct shareAcctInfoEnt *sa) {
+    int i = 0;
+
+    FREEUP(sa->name);
+    for (i = 0; i < sa->nChildShareAcct; i++) {
+        freeShareAcctInfoEnt(&(sa->childShareAccts[i]));
+    }
+    FREEUP(sa->childShareAccts);
+
+    return;
+} /*freeShareAcctInfoEnt*/

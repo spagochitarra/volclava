@@ -1,4 +1,5 @@
-/* $Id: mbd.grp.c 397 2007-11-26 19:04:00Z mblack $
+/* Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ * $Id: mbd.grp.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -147,7 +148,7 @@ getGroupInfoEnt(char **groups, int *num, char recursive)
 	    memcpy(groupInfoEnt + i, g, sizeof(struct groupInfoEnt));
 	}
 	  
-	*num = numofugroups;        
+	*num = numofugroups;
     } else {             
 	struct uData * u;
 	int            j = 0;
@@ -225,6 +226,10 @@ getGroupInfoEntFromUdata(struct uData *u, char recursive)
     group.group = u->user;
     group.memberList = getGroupMembers(u->gData, 
 				      recursive);
+    if (u->gData->ugrpAttrs) {
+        group.numUserShares = u->gData->ugrpAttrs->numUserShares;
+        group.userShares = u->gData->ugrpAttrs->userShares;
+    }
     return (&group);
 
 } 
@@ -422,7 +427,31 @@ gMember (char *word, struct gData *gp)
     }
     return FALSE;
 
-} 
+}
+
+char
+gMemberForShare(char *word, struct gData *gp)
+{
+    int i;
+
+    INC_CNT(PROF_CNT_gMember);
+
+    if (word == NULL || gp == NULL)
+        return FALSE;
+
+    if (gDirectMember(word, gp))
+        return TRUE;
+
+    for (i = 0; i < gp->numGroups; i++) {
+        if (strcmp(gp->gPtr[i]->group, word) == 0) {
+            return TRUE;
+        }
+        if (gMemberForShare(word, gp->gPtr[i]))
+            return TRUE;
+    }
+    return FALSE;
+
+}
 
 
 int
@@ -956,23 +985,25 @@ int
 sizeofGroupInfoReply(struct groupInfoReply *ugroups) 
 {
     int              len;
-    int              i;
+    int              i, j;
 
     len = 0;
 
     
     len += ALIGNWORD_(sizeof(struct groupInfoReply) 
-		      + ugroups->numGroups * sizeof(struct groupInfoEnt)
-		      + ugroups->numGroups * NET_INTSIZE_);
+                      + ugroups->numGroups * sizeof(struct groupInfoEnt)
+                        + ugroups->numGroups * NET_INTSIZE_);
     
     for (i = 0; i < ugroups->numGroups; i++) {
-	struct groupInfoEnt      *ent;
-	
-	ent = &(ugroups->groups[i]);
-	
-	
-	len += ALIGNWORD_(strlen(ent->group) + 1);
-	len += ALIGNWORD_(strlen(ent->memberList) + 1);
+        struct groupInfoEnt      *ent;
+
+        ent = &(ugroups->groups[i]);
+        len += ALIGNWORD_(strlen(ent->group) + 1);
+        len += ALIGNWORD_(strlen(ent->memberList) + 1);
+        for (j = 0; j < ent->numUserShares; j++) {
+            len += ALIGNWORD_(strlen(ent->userShares[j].name) + 1);
+            len += ALIGNWORD_(ent->userShares[j].share + 1);
+        }
     }
 
     return(len);
