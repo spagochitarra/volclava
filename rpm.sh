@@ -6,7 +6,7 @@ set -x
 # Copyright (c) 2011-2012 David Bigagli
 #
 
-major="1"
+major="2"
 minor="0"
 
 GIT_LAST_COMMIT=$(git log -1  --pretty=format:%H)

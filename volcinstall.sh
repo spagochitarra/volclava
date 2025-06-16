@@ -38,7 +38,7 @@ function usage() {
 
 #Default values
 TYPE="code"
-PACKAGE_NAME="volclava-1.0"
+PACKAGE_NAME="volclava-2.0"
 PREFIX="/opt/${PACKAGE_NAME}"
 setPrefix=0
 PHASE="all"
@@ -327,7 +327,7 @@ function install() {
 
         if [ $setPrefix -ne 0 ]; then
             #install deb with prefix
-            dpkg -x ../volclava_1.0*.deb $PREFIX
+            dpkg -x ../volclava_2.0*.deb $PREFIX
             #append hosts into lsf.cluster file
             if [ ! -z "$HOSTS" ]; then
                  addHosts2Cluster  "$HOSTS" ${PREFIX}/opt/${PACKAGE_NAME}/etc/lsf.cluster.volclava
@@ -337,7 +337,7 @@ function install() {
             chown volclava:volclava -R $PREFIX
             chmod 755 -R $PREFIX
         else
-            dpkg -i ../volclava_1.0*.deb
+            dpkg -i ../volclava_2.0*.deb
             #append hosts into lsf.cluster file
             if [ ! -z "$HOSTS" ]; then
                  addHosts2Cluster  "$HOSTS" /opt/${PACKAGE_NAME}/etc/lsf.cluster.volclava
@@ -369,11 +369,11 @@ function install() {
 
         #install volclava from rpm package
         cd ~/rpmbuild/RPMS/x86_64/
-        chmod 755 volclava-1.0*
-        if rpm -qa | grep volclava-1.0* > /dev/null 2>&1; then
-            rpm -e volclava-1.0*
+        chmod 755 volclava-2.0*
+        if rpm -qa | grep volclava-2.0* > /dev/null 2>&1; then
+            rpm -e volclava-2.0*
         fi
-        rpm -ivh --prefix $PREFIX volclava-1.0*
+        rpm -ivh --prefix $PREFIX volclava-2.0*
 
         #append hosts into lsf.cluster file
         if [ ! -z "$HOSTS" ]; then
