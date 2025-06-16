@@ -1,3 +1,18 @@
+volclava (2.0-0.b.20250616) UNRELEASED; urgency=medium
+
+  * support fairshare scheduling policy for users at queue level;
+  * support customize unit by configure LSF_UNIT_FOR_LIMITS in lsf.conf;
+  * fix loadstop not effect job scheduling;
+  * fix memory leak in bhosts and putEnv();
+  * fix pim hang when format of pim.info file is not in volclava format;
+  * fix sbd hang due to unnecessary popen;
+  * fix lsload -w does not display full hostname;
+  * fix mbatchd coredump when only suspend jobs remain;
+  * fix mem be reserved repeatedly after bresume ususp/ssusp job;
+  * fix running jobs exceed the number of slots due to shared type resource when slotResourceReserve=y;
+
+ -- Mingze Li <limingze.jiayou@bytedance.com>  Mon, 16 Jun 2025 11:57:00 +0800
+
 volclava (1.0-1.b.20250226) UNRELEASED; urgency=medium
 
   * lsb.users: support MAX_PEND_JOBS and MAX_PEND_SLOTS;

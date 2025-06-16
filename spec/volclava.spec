@@ -18,9 +18,9 @@
 #
 #
 
-%define major 1
+%define major 2
 %define minor 0
-%define release 1
+%define release 0
 %define build_timestamp %(date +"%Y%m%d")
 
 %define version %{major}.%{minor}
@@ -36,9 +36,9 @@
 
 Summary: volclava Distributed Batch Scheduler
 Name: volclava
-Version: 1.0
-# Release: 1.b.%{build_timestamp}
-Release: 1.b.20250226
+Version: 2.0
+# Release: 0.b.%{build_timestamp}
+Release: 0.b.20250616
 License: GPLv2
 Group: Applications/Productivity
 Vendor: volclava foundation
@@ -264,13 +264,13 @@ chown -h volclava:volclava ${_volclavatop}/bin/bstop
 chown -h volclava:volclava ${_volclavatop}/bin/bresume
 chown -h volclava:volclava ${_volclavatop}/bin/bchkpnt
 chown -h volclava:volclava ${_volclavatop}/bin/bugroup
-sed -i "s:/opt/volclava-1.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava.sh
-sed -i "s:/opt/volclava-1.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava.csh
-sed -i "s:/opt/volclava-1.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava
+sed -i "s:/opt/volclava-2.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava.sh
+sed -i "s:/opt/volclava-2.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava.csh
+sed -i "s:/opt/volclava-2.0:${_volclavatop}:g" ${_volclavatop}/etc/volclava
 /usr/bin/cp --backup=numbered ${_volclavatop}/etc/volclava.sh %{_sysconfdir}/profile.d
 /usr/bin/cp --backup=numbered ${_volclavatop}/etc/volclava.csh %{_sysconfdir}/profile.d
 /usr/bin/cp --backup=numbered  ${_volclavatop}/etc/volclava %{_sysconfdir}/init.d
-sed -i "s:/opt/volclava-1.0:${_volclavatop}:g" ${_volclavatop}/etc/lsf.conf
+sed -i "s:/opt/volclava-2.0:${_volclavatop}:g" ${_volclavatop}/etc/lsf.conf
 
 
 # Register lava daemons
@@ -436,6 +436,17 @@ rm -rf ${_volclavatop}
 %attr(0755,volclava,volclava) %{_volclavatop}/work/logdir
 
 %changelog
+* Mon Jun 16 2025 Releasing volclava 2.0.0 by Bytedance Ltd. and/or its affiliates
+- support fairshare scheduling policy for users at queue level;
+- support customize unit by configure LSF_UNIT_FOR_LIMITS in lsf.conf;
+- fix loadstop not effect job scheduling;
+- fix memory leak in bhosts and putEnv();
+- fix pim hang when format of pim.info file is not in volclava format;
+- fix sbd hang due to unnecessary popen;
+- fix lsload -w does not display full hostname;
+- fix mbatchd coredump when only suspend jobs remain;
+- fix mem be reserved repeatedly after bresume ususp/ssusp job;
+- fix running jobs exceed the number of slots due to shared type resource when slotResourceReserve=y;
 * Wed Feb 26 2025 Releasing volclava 1.0.2 by Bytedance Ltd. and/or its affiliates
 - lsb.users: support MAX_PEND_JOBS and MAX_PEND_SLOTS;
 - lsb.params: support MAX_PEND_JOBS and MAX_PEND_SLOTS and SUB_TRY_INTERVAL;

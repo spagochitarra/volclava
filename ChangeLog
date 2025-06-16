@@ -1,3 +1,24 @@
+2025-06-16  Mingze Li <limingze.jiayou@bytedance.com>
+            Nan Qi <qinan.cn@bytedance.com>
+            Guangbo Shu <shuguangbo@bytedance.com>
+
+	* release volclava 2.0.0.
+
+	* Summary of changes:
+	1. support fairshare scheduling policy for users at queue level;
+	2. support customize unit by configure LSF_UNIT_FOR_LIMITS in lsf.conf;
+	3. support conf MAX_PEND_JOBS and MAX_PEND_SLOTS in lsb.users and lsb.params;
+	4. support conf DEFAULT_LIMIT_IGNORE_USER_GROUP and SUB_TRY_INTERVAL in lsb.params;
+	5. support resource reserve as per-host;
+	6. fix loadstop not effect job scheduling;
+	7. fix memory leak in bhosts and putEnv();
+	8. fix pim hang when format of pim.info file is not in volclava format;
+	9. fix sbd hang due to unnecessary popen;
+	10. fix lsload -w does not display full hostname;
+	11. fix mbatchd coredump when only suspend jobs remain;
+	12. fix mem be reserved repeatedly after bresume ususp/ssusp job;
+	13. fix running jobs exceed the number of slots due to shared type resource when slotResourceReserve=y;
+
 2025-01-06  Mingze Li  <limingze.jiayou@bytedance.com>
             Nan Qi <qinan.cn@bytedance.com>
 
