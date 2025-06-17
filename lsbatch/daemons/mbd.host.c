@@ -67,7 +67,7 @@ checkHosts(struct infoReq *hostsReqPtr,
 
     hostsReplyPtr->numHosts = 0;
     hostsReplyPtr->nIdx = allLsInfo->numIndx;
-    hostsReplyPtr->hosts = my_calloc(numofhosts(),
+    hostsReplyPtr->hosts = my_calloc(HTAB_NUM_ELEMENTS(&hostTab),
                                      sizeof(struct hostInfoEnt),
                                      __func__);
 
@@ -80,7 +80,7 @@ checkHosts(struct infoReq *hostsReqPtr,
     }
 
     if (hDList == NULL)
-        hDList = my_calloc(numofhosts(),
+        hDList = my_calloc(HTAB_NUM_ELEMENTS(&hostTab),
                            sizeof (struct hData *), "checkHosts");
 
     if (hostsReqPtr->numNames == 0) {
@@ -206,7 +206,7 @@ returnHostInfo(struct hostDataReply *hostsReplyPtr, int numHosts,
             }
             if (hostReq->options & SORT_HOST) {
                 if (candHosts == NULL)
-                    candHosts = my_calloc (numofhosts(),
+                    candHosts = my_calloc (HTAB_NUM_ELEMENTS(&hostTab),
                                            sizeof(struct candHost),
                                            "returnHostInfo");
                 for (i = 0; i < numHosts; i++)
@@ -1336,17 +1336,28 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj) {
         adjForPreemptableResource = TRUE;
     }
 
-    hBitMaps = (int *)my_calloc(GET_INTNUM(numofhosts()), sizeof(int), fname);
+    hBitMaps = (int *)my_calloc(HTAB_NUM_ELEMENTS(&hostTab), sizeof(int), fname);
     hPosBitMaps = (int *)my_calloc(GET_INTNUM(jpbw->numHostPtr), sizeof(int), fname);
     for (i = 0; i < jpbw->numHostPtr; i++) {
+        int hostId = 0;
         if (jpbw->hPtr[i]->hStatus & HOST_STAT_UNAVAIL)
             continue;
 
-        TEST_BIT(jpbw->hPtr[i]->hostId, hBitMaps, isSet);
+        if (jpbw->hPtr[i]->flags & HOST_LOST_FOUND) {
+            /*lost_and_found host has no hostId(hostId is generated in updHostList())
+             *hostTab has lost_and_found,but hostList not. So we just use numofhosts()
+             *as lost_and_found's hostId to distinguish with normal hosts.
+             */
+            hostId = numofhosts();
+        } else {
+            hostId = jpbw->hPtr[i]->hostId;
+        }
+
+        TEST_BIT(hostId, hBitMaps, isSet);
         if(isSet) {
             continue;
         } else {
-            SET_BIT(jpbw->hPtr[i]->hostId, hBitMaps);
+            SET_BIT(hostId, hBitMaps);
             SET_BIT(i, hPosBitMaps);
             nExecHosts++;    
         }
@@ -1382,6 +1393,10 @@ adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj) {
         char loadString[MAXLSFNAMELEN];
 
         if (execHosts[i].hPtr->hStatus & HOST_STAT_UNAVAIL) {
+            continue;
+        }
+        
+        if (execHosts[i].hPtr->flags & HOST_LOST_FOUND) {
             continue;
         }
 
@@ -1909,8 +1924,13 @@ znovu:
         /* reset the host pointers for
          * FJL and ZJL jobs too
          */
-        if (hPtr != jPtr->hPtr[0])
+        if (jPtr->hPtr == NULL) {
             continue;
+        }
+
+        if (hPtr != jPtr->hPtr[0]) {
+            continue;
+        }
 
         for (cc = 0; cc < jPtr->numHostPtr; cc++) {
             jPtr->hPtr[cc] = NULL;
