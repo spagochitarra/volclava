@@ -7486,6 +7486,7 @@ static int addSchedPendJob2Set(struct fsQueueJobSet *jobSet, void *data) {
         /*There are FS_MAX_CANDHOST jobs already, let us remove the back one, and append new on at front*/
         LIST_ENTRY_T * tmp = listGetBackEntry(jList);
         listRemoveEntry(jList, tmp);
+        FREEUP(tmp);
     }
     listInsertEntryAtFront(jList, (LIST_ENTRY_T *)jRef);
 

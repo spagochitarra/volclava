@@ -8101,6 +8101,10 @@ shouldResumeByRes (struct jData *jp)
     for (i = 0; i < jp->numHostPtr && returnCode != CANNOT_RESUME; i++) {
         int isSet;
 
+        if (jp->hPtr[i]->flags & HOST_LOST_FOUND) {
+            continue;
+        }
+
         TEST_BIT(jp->hPtr[i]->hostId, hBitMaps, isSet);
         if (isSet) {
             /*The host has been checked, we don't need validate load/resource again*/
