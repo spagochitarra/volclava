@@ -90,18 +90,18 @@ do_sub (int argc, char **argv, int option)
     }
 
     if (lsb_init(argv[0]) < 0) {
-	sub_perror("lsb_init");
-	fprintf(stderr, ". %s.\n",
-	    (_i18n_msg_get(ls_catd,NL_SETN,1551, "Job not submitted"))); /* catgets  1551  */
-	return (-1);
+        sub_perror("lsb_init");
+        fprintf(stderr, ". %s.\n",
+                (_i18n_msg_get(ls_catd,NL_SETN,1551, "Job not submitted"))); /* catgets  1551  */
+        return (-1);
     }
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if (fillReq (argc, argv, option, &req, FALSE) < 0){
-	fprintf(stderr,  ". %s.\n",
-	    (_i18n_msg_get(ls_catd,NL_SETN,1551, "Job not submitted")));
+        fprintf(stderr,  ". %s.\n",
+                (_i18n_msg_get(ls_catd,NL_SETN,1551, "Job not submitted")));
         return (-1);
     }
 
@@ -198,7 +198,10 @@ do_pack_sub (int option, char **argv, struct submit *req)
     while ((line = getNextLineC_(fp, &lineNum, TRUE)) != NULL) {
         parseError = FALSE;
         packParsed ++;
-        fprintf(stderr, "Line#%d ", lineNum);
+        // current implementation have to print "Line#lineNum" at first, and could not
+        // check print as stdout or stderr due to it calls the function of lsb_submit,
+        // so we just print it at stdout and rewrite it along with the optimize project.
+        fprintf(stdout, "Line#%d ", lineNum);
 
         sprintf(tmpBuf, "%s %s", argv[0], line);
         packedArgv = split_commandline(tmpBuf, &packedArgc);
@@ -268,7 +271,7 @@ do_pack_sub (int option, char **argv, struct submit *req)
         }
     }
 
-    fprintf(stderr,  "%d lines parsed, %d jobs submitted, %d errors found.\n",
+    fprintf(stdout,  "%d lines parsed, %d jobs submitted, %d errors found.\n",
             packParsed, packSubmit, packError);
 
     fclose(fp);
@@ -346,12 +349,12 @@ prtBETime (struct submit req)
 
     if (req.beginTime) {
         strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.beginTime ));
-        fprintf(stderr, "%s %s\n",
+        fprintf(stdout, "%s %s\n",
 	    (_i18n_msg_get(ls_catd,NL_SETN,1556, "Job will be scheduled after")), sp); /* catgets  1556  */
     }
     if (req.termTime) {
         strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.termTime ));
-        fprintf(stderr, "%s %s\n",
+        fprintf(stdout, "%s %s\n",
 	    (_i18n_msg_get(ls_catd,NL_SETN,1557, "Job will be terminated by")), sp); /* catgets  1557  */
     }
 }

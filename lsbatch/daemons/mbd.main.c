@@ -214,11 +214,11 @@ main (int argc, char **argv)
                 break;
             case 'C':
                 putEnv("RECONFIG_CHECK","YES");
-                fputs("\n", stderr);
+                fputs("\n", stdout);
                 lsb_CheckMode = 1;
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 return -1;
             case 'h':
             default:

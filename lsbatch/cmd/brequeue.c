@@ -1,4 +1,7 @@
-/* $Id: brequeue.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: brequeue.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -126,7 +129,7 @@ main (int argc, char **argv)
             case 'J': jobName = optarg;
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 exit(0);
             case 'u':
                 if (user)

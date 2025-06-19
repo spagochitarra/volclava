@@ -444,7 +444,7 @@ do_options(int argc, char **argv, struct bhistReq *bhistReq)
                 break;
 
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 exit(0);
             case 'J':
                 bhistReq->options |= OPT_JOBNAME;

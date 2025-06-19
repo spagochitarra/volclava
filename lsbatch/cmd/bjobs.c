@@ -476,7 +476,7 @@ do_options (int argc, char **argv, int *options, char **user, char **queue,
                 *format = WIDE_FORMAT;
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 exit(0);
             case 'U':
                 if (*format == O_FORMAT)

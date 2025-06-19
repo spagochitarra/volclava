@@ -1503,10 +1503,10 @@ cleanup:
 	if (subSpoolFiles.inFileSpool[0]) {
 	    spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.inFileSpool);
 	    err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
-	    if (err) {
-                fprintf(stderr,
-		        (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
-			subSpoolFiles.inFileSpool, spoolHost);
+        if (err) {
+            fprintf(stderr,
+                    (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
+                    subSpoolFiles.inFileSpool, spoolHost);
 	    }
 	}
 
@@ -1514,10 +1514,10 @@ cleanup:
 	if (subSpoolFiles.commandSpool[0]) {
 	    spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.commandSpool);
 	    err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
-	    if (err) {
-                fprintf(stderr,
-		        (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
-			subSpoolFiles.commandSpool, spoolHost);
+        if (err) {
+            fprintf(stderr,
+                    (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
+                    subSpoolFiles.commandSpool, spoolHost);
 	    }
 	}
     }
@@ -3952,7 +3952,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 		additionEsubInfo=putstr_(optarg);
 		break;
 	case 'V':
-	    fputs(_LS_VERSION_, stderr);
+	    fputs(_LS_VERSION_, stdout);
 	    exit(0);
 
 	default:

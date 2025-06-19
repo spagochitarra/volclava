@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
  * Copyright (C) 2011 David Bigagli
  * $Id: lsid.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
@@ -32,6 +34,7 @@ static void
 usage(char *cmd)
 {
     fprintf (stderr, "%s: %s [-h] [-V]\n", I18N_Usage, cmd);
+    exit(-1);
 }
 
 int
@@ -47,15 +50,12 @@ main(int argc, char **argv)
 
     while ((cc = getopt(argc, argv, "hV")) != EOF) {
         switch (cc) {
-            case 'h':
-                usage(argv[0]);
-                return 0;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 return 0;
+            case 'h':
             default:
                 usage(argv[0]);
-                return -1;
         }
     }
     puts(_LS_VERSION_);

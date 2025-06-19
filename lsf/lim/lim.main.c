@@ -152,12 +152,12 @@ main(int argc, char **argv)
             case 'C':
                 putEnv("RECONFIG_CHECK","YES");
                 fputs("\n", stderr);
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 lim_CheckMode = 1;
                 lim_debug = 2;
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 return 0;
             case 't':
                 showTypeModel = 1;

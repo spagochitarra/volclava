@@ -100,7 +100,7 @@ main (int argc, char **argv, char **environ)
             jobName = optarg;
             break;
 	case 'V':
-	    fputs(_LS_VERSION_, stderr);
+	    fputs(_LS_VERSION_, stdout);
 	    exit(0);
 	case 'f':
 	    fflag = TRUE;

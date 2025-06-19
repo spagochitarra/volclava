@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
  * Copyright (C) 2011 David Bigagli
  *
  * This program is free software; you can redistribute it and/or modify
@@ -44,7 +46,7 @@ main(int argc, char **argv)
     while ((cc = getopt(argc, argv, "Vh")) != EOF) {
         switch (cc) {
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 return 0;
             case 'h':
             case '?':

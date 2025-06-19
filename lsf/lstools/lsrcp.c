@@ -1,4 +1,7 @@
-/* $Id: lsrcp.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: lsrcp.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -213,8 +216,8 @@ doXferOptions( lsRcpXfer *lsXfer, int argc, char *argv[] )
 
             case 'V':
 
-                fputs(_LS_VERSION_,stderr);
-                exit(-1);
+                fputs(_LS_VERSION_,stdout);
+                exit(0);
 
             case '?':
                 doXferUsage();

@@ -177,7 +177,7 @@ main(int argc, char **argv)
         }
 
         if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LS_VERSION_, stdout);
             exit(0);
         }
 

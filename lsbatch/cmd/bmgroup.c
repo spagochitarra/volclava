@@ -64,7 +64,7 @@ main (int argc, char **argv)
             options |= GRP_RECURSIVE;
             break;
 	case 'V':
-	    fputs(_LS_VERSION_, stderr);
+	    fputs(_LS_VERSION_, stdout);
 	    exit(0);
 	case 'l':
 	    if (strstr(argv[0], "bmgroup") != NULL) {
