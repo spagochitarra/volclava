@@ -60,7 +60,7 @@ static char fomt[200];
 void
 usage (char *cmd)
 {
-     fprintf(stderr, ": %s [-h] [-V] [-w | -l | -r] [-m host_name | -m cluster_name]\n", cmd);
+     fprintf(stderr, "%s: %s [-h] [-V] [-w | -l | -r] [-m host_name | -m cluster_name]\n", I18N_Usage, cmd);
 
     if (lsbMode_ & LSB_MODE_BATCH)
         fprintf(stderr, " [-u user_name]");
@@ -115,7 +115,7 @@ main(int argc, char **argv)
                     usage(argv[0]);
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 exit(0);
             case 'h':
             default:

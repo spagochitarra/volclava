@@ -319,7 +319,7 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LS_VERSION_, stdout);
             exit(0);
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == TRUE) {

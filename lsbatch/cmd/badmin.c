@@ -52,7 +52,7 @@ main (int argc, char **argv)
     if (argc > 1 && '-' == argv[1][0]) {
         switch(argv[1][1]) {
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LS_VERSION_, stdout);
                 exit(0);
             case 'h':
             default:

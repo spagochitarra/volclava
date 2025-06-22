@@ -234,8 +234,8 @@ void
 lsb_perror (char *usrMsg)
 {
     if (usrMsg) {
-	fputs(usrMsg, stderr);
-	fputs(": ", stderr);
+        fputs(usrMsg, stderr);
+        fputs(": ", stderr);
     }
     fputs(lsb_sysmsg(), stderr);
     putc('\n', stderr);

@@ -1,4 +1,7 @@
-/* $Id: bhosts.c 397 2007-11-26 19:04:00Z mblack $
+/*
+ * Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+ *
+ * $Id: bhosts.c 397 2007-11-26 19:04:00Z mblack $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -138,7 +141,7 @@ main(int argc, char **argv)
             _i18n_end ( ls_catd );
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LS_VERSION_, stdout);
             _i18n_end ( ls_catd );
             exit(0);
         } else if (strcmp(argv[i], "-s") == 0) {

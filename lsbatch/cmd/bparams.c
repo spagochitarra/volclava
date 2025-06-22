@@ -59,7 +59,7 @@ main (int argc, char **argv)
             longFormat = TRUE;
             break;
 	case 'V':
-	    fputs(_LS_VERSION_, stderr);
+	    fputs(_LS_VERSION_, stdout);
 	    exit(0);
         case 'h':
         default:
