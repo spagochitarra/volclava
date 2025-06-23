@@ -130,6 +130,7 @@ extern int  gettimefor (char *toptarg, time_t *tTime);
 extern int  skipJob(int, int *, int);
 
 extern void prtWord(int, const char *, int);
+extern void prtWord2(int, const char *, int);
 extern void prtWordL(int, const char *);
 extern char *prtValue(int, int);
 extern char *prtFloat(int, int, float);

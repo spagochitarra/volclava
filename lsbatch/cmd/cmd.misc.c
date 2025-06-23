@@ -156,6 +156,33 @@ prtWord(int len, const char *word, int cent)
        printf(fomt, word, " ");
 }
 
+/*Print a word without truncation, and expect word end in space*/
+void
+prtWord2(int len, const char *word, int cent)
+{   
+    char fomt[200];
+       
+    if ( cent == 0 ){
+        sprintf(fomt, "%%-%ds", len);
+        printf(fomt, word);
+    } else if (cent < 0) {
+        sprintf(fomt, "%%%ds", len);
+        printf(fomt, word);
+    } else {
+        int lenW = (int)strlen(word);
+        if ( lenW >= len ) {
+            sprintf(fomt, "%%-%ds", len);
+            printf(fomt, word);
+        } else {
+            int d1 = lenW + ((len - lenW) >> 1), d2;
+            
+            d2 = len - d1;
+            sprintf(fomt, "%%%ds%%%ds", d1, d2);
+            printf(fomt, word, " ");
+        }
+    }
+}
+
 void
 prtWordL(int len, const char *word)
 {

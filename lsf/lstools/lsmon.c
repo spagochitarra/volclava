@@ -158,7 +158,7 @@ getLoadInfo(void)
 		      addstr(str);
 		  }
 	    else if (LS_ISOKNRES(hosts[i].status)) {
-		      char str[7];
+		      char str[8];
 
 		      sprintf(str, " %2s    ", I18N_ok);
 		      addstr(str);

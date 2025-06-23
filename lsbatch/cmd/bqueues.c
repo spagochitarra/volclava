@@ -50,10 +50,10 @@ extern int terminateWhen_(int *, char *);
 #define QUEUE_RSV_LENGTH     4
 #define QUEUE_FS_NAME        14
 #define QUEUE_FS_SHARES      7
-#define QUEUE_FS_PRIO        9
-#define QUEUE_FS_STARTED     8
-#define QUEUE_FS_CPUTIME     9
-#define QUEUE_FS_RUNTIME     8
+#define QUEUE_FS_PRIO        11
+#define QUEUE_FS_STARTED     9
+#define QUEUE_FS_CPUTIME     11
+#define QUEUE_FS_RUNTIME     9
 
 static char fomt[200];
 
@@ -727,11 +727,11 @@ static void prtShareAcct(struct shareAcctInfoEnt *sAcctInfo) {
         return;
     }
     prtSAcctName(QUEUE_FS_NAME, sAcctInfo->name);
-    prtWord(QUEUE_FS_SHARES, prtValue(QUEUE_FS_SHARES, sAcctInfo->share), -1);
-    prtWord(QUEUE_FS_PRIO, prtFloat(QUEUE_FS_PRIO, 3, sAcctInfo->priority), -1);
-    prtWord(QUEUE_FS_STARTED, prtValue(QUEUE_FS_STARTED, sAcctInfo->numStartJobs), -1);
+    prtWord2(QUEUE_FS_SHARES, prtValue(QUEUE_FS_SHARES, sAcctInfo->share), -1);
+    prtWord2(QUEUE_FS_PRIO, prtFloat(QUEUE_FS_PRIO, 3, sAcctInfo->priority), -1);
+    prtWord2(QUEUE_FS_STARTED, prtValue(QUEUE_FS_STARTED, sAcctInfo->numStartJobs), -1);
     prtWord(QUEUE_FS_CPUTIME, prtFloat(QUEUE_FS_CPUTIME, 1, sAcctInfo->cpuTime), -1);
-    prtWord(QUEUE_FS_RUNTIME, prtValue(QUEUE_FS_RUNTIME, (int)sAcctInfo->runTime), -1);
+    prtWord2(QUEUE_FS_RUNTIME, prtValue(QUEUE_FS_RUNTIME, sAcctInfo->runTime), -1);
     printf("\n");
     return;
 } /*prtShareAcctHeader*/
