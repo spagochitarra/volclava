@@ -128,20 +128,21 @@ main (int argc, char **argv)
 
     support1_2(argc, argv);
 
+    if (argc > 1 && '-' == argv[1][0]) {
 
-
-    while ((cc = getopt(argc, argv, "Vh")) != EOF) {
-        switch (cc) {
-        case 'V':
-            fputs(_LS_VERSION_, stdout);
-            exit(0);
-        case 'h':
-        default:
-
-            cmdsUsage("lsadmin", cmdList,
-		      _i18n_msgArray_get( ls_catd, NL_SETN, cmdInfo_ID, cmdInfo));
+        while ((cc = getopt(argc, argv, "Vh")) != EOF) {
+            switch (cc) {
+            case 'V':
+                fputs(_LS_VERSION_, stdout);
+                exit(0);
+            case 'h':
+            default:
+                cmdsUsage("lsadmin", cmdList,
+		          _i18n_msgArray_get( ls_catd, NL_SETN, cmdInfo_ID, cmdInfo));
+            }
         }
     }
+
     if (argc > optind) {
         if ((myIndex=adminCmdIndex(argv[optind], cmdList)) == -1) {
             fprintf(stderr, "Invalid command <%s> \n", argv[optind]);
