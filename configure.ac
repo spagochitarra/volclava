@@ -1,8 +1,12 @@
-# configure.ac for volclava — compatible and minimal
-AC_INIT([volclava], [2.0], [support@example.com])
-AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_SRCDIR([lsf/Makefile.am])
-AC_PREFIX_DEFAULT([/opt/volclava-2.0])
+#
+# volclava project
+#
+# Copyright (C) 2021-2025 Bytedance Ltd. and/or its affiliates
+# Copyright (C) 2011 David Bigagli
+#
+AC_INIT([volclava], [2.1], [https://github.com/bytedance/volclava/issues])
+AC_CONFIG_HEADERS(config.h)
+AC_PREFIX_DEFAULT([/opt/volclava-2.1])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AM_SILENT_RULES([yes])

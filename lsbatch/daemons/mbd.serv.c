@@ -44,6 +44,8 @@ static void freeJobInfoReply (struct jobInfoReply *);
 static void freeShareResourceInfoReply (struct  lsbShareResourceInfoReply *);
 extern void closeSession(int);
 
+struct controlReq mbdCtrlReq;
+
 int
 do_submitReq(XDR *xdrs,
              int chfd,
@@ -1264,6 +1266,7 @@ do_hostInfoReq(XDR *xdrs,
     int reply;
     struct infoReq hostsReq;
     struct hostDataReply hostsReply;
+    int i = 0;
 
     replyStruct = NULL;
     memset(&hostsReply, 0, sizeof(struct hostDataReply));
@@ -1278,7 +1281,7 @@ do_hostInfoReq(XDR *xdrs,
     reply = checkHosts(&hostsReq, &hostsReply);
 
     count = hostsReply.numHosts * (sizeof(struct hostInfoEnt)
-                                   + MAXLINELEN + MAXHOSTNAMELEN
+                                   + MAXLINELEN*2 + MAXHOSTNAMELEN
                                    + hostsReply.nIdx * 4 * sizeof(float)) + 100;
 
     reply_buf = my_calloc(count, sizeof(char), __func__);
