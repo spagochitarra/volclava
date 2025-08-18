@@ -7,9 +7,42 @@
 AC_INIT([volclava], [2.1], [https://github.com/bytedance/volclava/issues])
 AC_CONFIG_HEADERS(config.h)
 AC_PREFIX_DEFAULT([/opt/volclava-2.1])
-
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AM_SILENT_RULES([yes])
+
+# Set some cluster configuration variables .
+AC_ARG_VAR([volclavaadmin], "customize cluster administrator")
+if test -z "$volclavaadmin"; then
+    volclavaadmin="volclava"
+fi
+AC_SUBST([volclavaadmin])
+
+AC_ARG_VAR([volclavacluster], "customize cluster name")
+if test -z "$volclavacluster"; then
+    volclavacluster="volclava"
+fi
+AC_SUBST([volclavacluster])
+
+# Cygwin support
+AC_CANONICAL_SYSTEM
+case "${target_os}" in
+  *cygwin*)
+    AM_CONDITIONAL([CYGWIN], [true]) ;;
+  *)
+    AM_CONDITIONAL([CYGWIN], [false]) ;;
+esac
+
+# Initialize the automake
+AM_INIT_AUTOMAKE
+
+# Expirimental scheduling module
+AM_CONDITIONAL([SCHED_EXPERIMENTAL], [false])
+
+# Clean output if possible
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+# Check for programs
+>>>>>>> 9fa7878 (make installer support customized admin and clustername)
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_RANLIB
