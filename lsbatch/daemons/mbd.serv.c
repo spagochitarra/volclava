@@ -1718,6 +1718,11 @@ do_reconfigReq(XDR *xdrs,
     XDR xdrs2;
     struct LSFHeader replyHdr;
 
+    if (!xdr_controlReq(xdrs, &mbdCtrlReq, reqHdr)) {
+        memset(&mbdCtrlReq, 0, sizeof(struct controlReq));
+        ls_syslog(LOG_WARNING, "%s: %s failed to decode comments on reconfig/mbdrestart", __func__, "xdr_controlReq");
+    }
+
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.opCode = LSBE_NO_ERROR;
     replyHdr.length = 0;
@@ -2089,6 +2094,10 @@ doNewJobReply(struct sbdNode *sbdPtr, int exception)
             } else {
 
                 sbdPtr->reqCode = MBD_NEW_JOB_KEEP_CHAN;
+                if (chanModEpoll_(sbdPtr->chanfd,
+                                  EPOLLOUT|EPOLLIN|EPOLLERR|EPOLLRDHUP) < 0) {
+                    ls_syslog(LOG_ERR, "%s: chanModEpoll_() failed %m", __func__);
+                }
             }
         } else {
 
